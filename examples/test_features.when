@@ -1,0 +1,78 @@
+# Test all implemented features
+
+# Test boolean literals
+flag1 = True
+flag2 = False
+
+# Test None literal
+nothing = None
+
+# Test negative numbers
+neg_num = -42
+neg_float = -3.14
+
+# Test lists
+numbers = [1, 2, 3, 4, 5]
+mixed_list = [1, "hello", True, None]
+
+# Test tuples
+coordinates = (10, 20)
+empty_tuple = ()
+single_tuple = (42,)
+
+# Test function with multiple return values
+def get_name_age():
+    return "Alice", 25
+
+def calculate():
+    global numbers
+    result = numbers[0] + numbers[1]
+    return result, -result
+
+# Test unary operators
+def test_unary():
+    x = 10
+    y = -x
+    return y
+
+os setup():
+    print("Testing all new features:")
+
+    # Test boolean literals
+    print("Boolean literals:", flag1, flag2)
+
+    # Test None
+    print("None value:", nothing)
+
+    # Test negative numbers
+    print("Negative numbers:", neg_num, neg_float)
+
+    # Test lists and indexing
+    print("List:", numbers)
+    print("First element:", numbers[0])
+    print("Last element:", numbers[-1])
+    print("Mixed list:", mixed_list)
+
+    # Test tuples and indexing
+    print("Tuple:", coordinates)
+    print("X coordinate:", coordinates[0])
+    print("Y coordinate:", coordinates[1])
+    print("Empty tuple:", empty_tuple)
+    print("Single tuple:", single_tuple)
+
+    # Test multiple return values
+    name_age = get_name_age()
+    print("Name and age:", name_age)
+
+    # Test global and unary operators
+    results = calculate()
+    print("Calculation results:", results)
+
+    unary_result = test_unary()
+    print("Unary operator result:", unary_result)
+
+    print("All tests completed!")
+
+main:
+    setup()
+    exit()

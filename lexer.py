@@ -22,6 +22,7 @@ class TokenType(Enum):
     EXIT = auto()
     PASS = auto()
     RETURN = auto()
+    GLOBAL = auto()
 
     # Operations
     START = auto()
@@ -31,6 +32,9 @@ class TokenType(Enum):
     NUMBER = auto()
     STRING = auto()
     IDENTIFIER = auto()
+    TRUE = auto()
+    FALSE = auto()
+    NONE = auto()
 
     # Operators
     ASSIGN = auto()
@@ -50,6 +54,8 @@ class TokenType(Enum):
     COLON = auto()
     LPAREN = auto()
     RPAREN = auto()
+    LBRACKET = auto()
+    RBRACKET = auto()
     COMMA = auto()
 
     # Special
@@ -104,6 +110,11 @@ class Lexer:
     def read_number(self) -> Token:
         start_col = self.column
         num_str = ''
+
+        # Handle negative numbers
+        if self.peek() == '-':
+            num_str += self.advance()
+
         while self.peek() and self.peek().isdigit():
             num_str += self.advance()
         if self.peek() == '.':
@@ -154,8 +165,12 @@ class Lexer:
             'continue': TokenType.CONTINUE,
             'pass': TokenType.PASS,
             'return': TokenType.RETURN,
+            'global': TokenType.GLOBAL,
             'start': TokenType.START,
             'stop': TokenType.STOP,
+            'True': TokenType.TRUE,
+            'False': TokenType.FALSE,
+            'None': TokenType.NONE,
         }
 
         token_type = keywords.get(ident, TokenType.IDENTIFIER)
@@ -201,8 +216,8 @@ class Lexer:
                 self.advance()
                 continue
 
-            # Numbers
-            if char.isdigit():
+            # Numbers (including negative numbers)
+            if char.isdigit() or (char == '-' and self.peek(1) and self.peek(1).isdigit()):
                 self.tokens.append(self.read_number())
                 continue
 
@@ -237,6 +252,8 @@ class Lexer:
                 ':': TokenType.COLON,
                 '(': TokenType.LPAREN,
                 ')': TokenType.RPAREN,
+                '[': TokenType.LBRACKET,
+                ']': TokenType.RBRACKET,
                 ',': TokenType.COMMA,
                 '=': TokenType.ASSIGN,
                 '+': TokenType.PLUS,

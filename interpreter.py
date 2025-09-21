@@ -174,16 +174,42 @@ class Interpreter:
         elif isinstance(stmt, PassStatement):
             pass
         elif isinstance(stmt, ReturnStatement):
-            value = None
-            if stmt.value:
-                value = self.eval_expression(stmt.value)
+            if len(stmt.values) == 0:
+                value = None
+            elif len(stmt.values) == 1:
+                value = self.eval_expression(stmt.values[0])
+            else:
+                # Multiple return values - return as tuple
+                value = tuple(self.eval_expression(val) for val in stmt.values)
             raise ReturnException(value)
+        elif isinstance(stmt, GlobalStatement):
+            # Global statements just mark variables as global in local scope
+            # For our simple interpreter, this is mostly a no-op since we use global scope
+            pass
 
     def eval_expression(self, expr: Expression) -> Any:
         if isinstance(expr, NumberLiteral):
             return expr.value
         elif isinstance(expr, StringLiteral):
             return expr.value
+        elif isinstance(expr, BooleanLiteral):
+            return expr.value
+        elif isinstance(expr, NoneLiteral):
+            return None
+        elif isinstance(expr, ListLiteral):
+            return [self.eval_expression(elem) for elem in expr.elements]
+        elif isinstance(expr, TupleLiteral):
+            return tuple(self.eval_expression(elem) for elem in expr.elements)
+        elif isinstance(expr, IndexExpression):
+            obj = self.eval_expression(expr.object)
+            index = self.eval_expression(expr.index)
+            return obj[index]
+        elif isinstance(expr, UnaryOp):
+            operand = self.eval_expression(expr.operand)
+            if expr.operator == '-':
+                return -operand
+            else:
+                raise NotImplementedError(f"Unary operator {expr.operator} not implemented")
         elif isinstance(expr, Identifier):
             with self.global_vars_lock:
                 if expr.name in self.global_vars:

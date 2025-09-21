@@ -97,7 +97,11 @@ class PassStatement(Statement):
 
 @dataclass
 class ReturnStatement(Statement):
-    value: Optional['Expression'] = None
+    values: List['Expression']
+
+@dataclass
+class GlobalStatement(Statement):
+    names: List[str]
 
 @dataclass
 class Assignment(Statement):
@@ -143,6 +147,27 @@ class NumberLiteral(Expression):
 @dataclass
 class StringLiteral(Expression):
     value: str
+
+@dataclass
+class BooleanLiteral(Expression):
+    value: bool
+
+@dataclass
+class NoneLiteral(Expression):
+    pass
+
+@dataclass
+class ListLiteral(Expression):
+    elements: List[Expression]
+
+@dataclass
+class TupleLiteral(Expression):
+    elements: List[Expression]
+
+@dataclass
+class IndexExpression(Expression):
+    object: Expression
+    index: Expression
 
 @dataclass
 class MemberAccess(Expression):
