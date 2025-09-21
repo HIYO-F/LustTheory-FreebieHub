@@ -1,0 +1,40 @@
+# Simple test of WHEN loop concepts
+count = 0
+iteration = 0
+
+# One-shot initialization
+os setup():
+    print("Setting up...")
+    print("Setup complete!")
+
+# Declarative block - runs exactly 3 times
+de tick(3):
+    print("Tick", iteration)
+    iteration = iteration + 1
+
+# Forever block
+fo monitor():
+    count = count + 1
+    print("  Monitor check", count)
+    when count > 5:
+        print("  Monitor limit reached!")
+        break
+
+# Main orchestrator
+main:
+    print("Starting program")
+
+    # Initialize once
+    setup()
+
+    # Start blocks
+    tick.start()
+    monitor.start()
+
+    # Exit after both complete
+    when iteration >= 3:
+        print("Ticks completed, stopping monitor")
+        monitor.stop()
+        when count > 0:
+            print("Shutting down...")
+            exit()

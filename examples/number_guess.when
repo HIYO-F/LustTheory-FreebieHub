@@ -1,0 +1,61 @@
+# Number guessing game in WHEN
+# The number to guess is predetermined for simplicity
+target = 7
+guess = 0
+attempts = 0
+game_over = 0
+waiting_for_input = 0
+
+# Get player's guess
+os get_guess():
+    print("\nGuess a number between 1 and 10:")
+    guess_str = input()
+    guess = int(guess_str)
+    attempts = attempts + 1
+    waiting_for_input = 0
+
+# Check the guess
+os check_guess():
+    when guess == target:
+        print("CORRECT! You got it in", attempts, "attempts!")
+        game_over = 1
+    when guess < target:
+        print("Too low! Try again.")
+    when guess > target:
+        print("Too high! Try again.")
+
+# Main game controller
+main:
+    # Start game once
+    when attempts == 0:
+        print("=== NUMBER GUESSING GAME ===")
+        print("I'm thinking of a number between 1 and 10")
+        waiting_for_input = 1
+
+    # Get input when not waiting
+    when waiting_for_input == 1:
+        get_guess()
+
+    # Check guess after input
+    when guess > 0:
+        when game_over == 0:
+            check_guess()
+            when game_over == 0:
+                waiting_for_input = 1
+
+    # End game
+    when game_over == 1:
+        print("\nThanks for playing!")
+        print("Play again? (y/n):")
+        answer = input()
+        when answer == "y":
+            # Reset game
+            guess = 0
+            attempts = 0
+            game_over = 0
+            target = 3  # Change target for variety
+            print("\nNew game! I'm thinking of a different number...")
+            waiting_for_input = 1
+        when answer == "n":
+            print("Goodbye!")
+            exit()

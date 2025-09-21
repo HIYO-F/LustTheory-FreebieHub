@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+# WHEN Language Command-Line Tool for Unix/Linux/macOS
+# This script allows you to run WHEN programs with just "when filename.when"
+
+import sys
+import os
+from pathlib import Path
+
+# Add the directory containing this script to the path
+script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(script_dir))
+
+# Import and run the main WHEN interpreter
+from when import main
+
+if __name__ == "__main__":
+    main()

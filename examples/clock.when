@@ -1,0 +1,46 @@
+# Simple clock in WHEN language
+hours = 0
+minutes = 0
+seconds = 0
+running = 0
+ticks = 0
+
+# Clock ticker - updates time
+fo tick():
+    seconds = seconds + 1
+    ticks = ticks + 1
+
+    when seconds >= 60:
+        seconds = 0
+        minutes = minutes + 1
+
+    when minutes >= 60:
+        minutes = 0
+        hours = hours + 1
+
+    when hours >= 24:
+        hours = 0
+
+    sleep(0.1)  # Speed up for demo
+
+# Display current time
+de display(50):
+    print("Time:", hours, ":", minutes, ":", seconds)
+
+# Main clock controller
+main:
+    # Initialize once
+    when running == 0:
+        print("=== WHEN CLOCK ===")
+        print("Starting at 00:00:00")
+        tick.start()
+        display.start()
+        running = 1
+
+    # Stop after 50 ticks (5 seconds of real time)
+    when ticks >= 50:
+        tick.stop()
+        display.stop()
+        print("\nFinal time:", hours, ":", minutes, ":", seconds)
+        print("Clock stopped after", ticks, "ticks")
+        exit()

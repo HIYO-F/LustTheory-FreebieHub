@@ -1,0 +1,86 @@
+# Demo of Python module imports in WHEN
+import math
+import random
+from datetime import datetime
+from time import sleep as delay
+
+# Variables
+angle = 0
+numbers = ""
+current_time = ""
+
+# Math calculations using imported math module
+os calculate_stuff():
+    print("=== MATH MODULE DEMO ===")
+
+    # Use math functions
+    pi_val = math.pi
+    print("Pi value:", pi_val)
+
+    sin_30 = math.sin(math.radians(30))
+    print("Sin(30 degrees):", sin_30)
+
+    sqrt_16 = math.sqrt(16)
+    print("Square root of 16:", sqrt_16)
+
+    print("")
+
+# Random number generation
+de random_demo(5):
+    print("=== RANDOM MODULE DEMO ===")
+
+    # Generate random numbers
+    rand_int = random.randint(1, 100)
+    print("Random integer (1-100):", rand_int)
+
+    rand_float = random.random()
+    print("Random float (0-1):", rand_float)
+
+    # Random choice from list (simulated with multiple randoms)
+    choice_num = random.randint(1, 3)
+    when choice_num == 1:
+        print("Random choice: Apple")
+    when choice_num == 2:
+        print("Random choice: Banana")
+    when choice_num == 3:
+        print("Random choice: Orange")
+
+    print("")
+    delay(0.5)
+
+# Date and time demo
+fo time_demo():
+    current_time = datetime.now()
+    print("Current time:", current_time)
+    delay(2)
+
+# Get current year for calculations
+def get_year():
+    now = datetime.now()
+    return now.year
+
+# Main demo
+main:
+    # Initialize
+    when angle == 0:
+        print("Python Modules in WHEN Language Demo")
+        print("====================================")
+        calculate_stuff()
+        random_demo.start()
+        time_demo.start()
+        angle = 1
+
+    # After random demo completes
+    when angle == 1:
+        current_year = get_year()
+        print("Current year from function:", current_year)
+
+        # Calculate something with the year
+        years_since_2000 = current_year - 2000
+        print("Years since 2000:", years_since_2000)
+
+        random_demo.stop()
+        time_demo.stop()
+
+        print("\nDemo complete! Python modules work in WHEN!")
+        exit()

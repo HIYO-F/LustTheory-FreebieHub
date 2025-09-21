@@ -1,0 +1,49 @@
+# Traffic light simulation in WHEN
+state = "red"
+timer = 0
+cycles = 0
+
+# Light controller - cycles through states
+fo light_controller():
+    timer = timer + 1
+
+    when state == "red":
+        when timer >= 3:
+            state = "green"
+            timer = 0
+            print("GREEN - Go!")
+
+    when state == "green":
+        when timer >= 4:
+            state = "yellow"
+            timer = 0
+            print("YELLOW - Caution!")
+
+    when state == "yellow":
+        when timer >= 2:
+            state = "red"
+            timer = 0
+            cycles = cycles + 1
+            print("RED - Stop!")
+
+# Status display
+de status_display(30):
+    print("  [Light:", state, "| Timer:", timer, "]")
+    sleep(0.3)
+
+# Main traffic control
+main:
+    # Start immediately
+    when cycles == 0:
+        print("=== TRAFFIC LIGHT SIMULATOR ===")
+        print("RED - Stop!")
+        light_controller.start()
+        status_display.start()
+
+    # Stop after 3 full cycles
+    when cycles >= 3:
+        print("\nSimulation complete!")
+        print("Total cycles:", cycles)
+        light_controller.stop()
+        status_display.stop()
+        exit()

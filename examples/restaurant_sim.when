@@ -1,0 +1,164 @@
+# Restaurant Management Simulation in WHEN
+# Manages orders, cooking, and service
+
+# Restaurant state
+orders_pending = 0
+orders_cooking = 0
+orders_ready = 0
+orders_served = 0
+total_revenue = 0
+customer_satisfaction = 100
+
+# Kitchen state
+cook_timer = 0
+cooking_order = 0
+kitchen_busy = 0
+
+# Service state
+waiter_busy = 0
+service_timer = 0
+
+# System state
+restaurant_open = 0
+shift_time = 0
+customers_served = 0
+
+# Initialize restaurant
+os open_restaurant():
+    print("====================================")
+    print("     RESTAURANT SIMULATOR")
+    print("====================================")
+    print("Opening for business...")
+    print("Staff ready!")
+    print("")
+
+# Customer order generator - simulates incoming orders
+de order_generator(8):
+    orders_pending = orders_pending + 1
+    order_value = 15
+    print("[NEW ORDER] Order #", orders_pending, "received - Value: $", order_value)
+    sleep(0.5)
+
+# Kitchen processor - cooks orders
+fo kitchen():
+    # Start cooking if kitchen free and orders pending
+    when kitchen_busy == 0:
+        when orders_pending > 0:
+            when orders_cooking == 0:
+                orders_pending = orders_pending - 1
+                orders_cooking = 1
+                cooking_order = orders_pending + orders_cooking + orders_ready + orders_served
+                kitchen_busy = 1
+                cook_timer = 0
+                print("  [KITCHEN] Starting order #", cooking_order)
+
+    # Cook the order
+    when kitchen_busy == 1:
+        cook_timer = cook_timer + 1
+        when cook_timer == 2:
+            print("  [KITCHEN] Cooking...")
+        when cook_timer >= 4:
+            orders_cooking = orders_cooking - 1
+            orders_ready = orders_ready + 1
+            kitchen_busy = 0
+            print("  [KITCHEN] Order #", cooking_order, "ready!")
+            cooking_order = 0
+
+# Waiter service - delivers ready orders
+fo waiter():
+    # Pick up ready orders
+    when waiter_busy == 0:
+        when orders_ready > 0:
+            orders_ready = orders_ready - 1
+            waiter_busy = 1
+            service_timer = 0
+            print("    [WAITER] Picking up order")
+
+    # Deliver to customer
+    when waiter_busy == 1:
+        service_timer = service_timer + 1
+        when service_timer == 1:
+            print("    [WAITER] Delivering to table...")
+        when service_timer >= 3:
+            orders_served = orders_served + 1
+            customers_served = customers_served + 1
+            total_revenue = total_revenue + 15
+            waiter_busy = 0
+            print("    [WAITER] Order served! Customer happy!")
+            customer_satisfaction = customer_satisfaction + 2
+            when customer_satisfaction > 100:
+                customer_satisfaction = 100
+
+# Restaurant manager - monitors performance
+de manager_check(15):
+    print("\n--- MANAGER REPORT ---")
+    print("Pending orders:", orders_pending)
+    print("Cooking orders:", orders_cooking)
+    print("Ready orders:", orders_ready)
+    print("Served orders:", orders_served)
+    print("Revenue: $", total_revenue)
+    print("Satisfaction:", customer_satisfaction, "%")
+
+    # Check for problems
+    when orders_pending > 3:
+        print("  [!] Warning: Long wait times!")
+        customer_satisfaction = customer_satisfaction - 5
+    when orders_ready > 2:
+        print("  [!] Warning: Food getting cold!")
+        customer_satisfaction = customer_satisfaction - 3
+    print("----------------------\n")
+
+# Shift timer
+fo shift_tracker():
+    shift_time = shift_time + 1
+    sleep(0.3)
+
+    # Restaurant gets busier over time
+    when shift_time == 10:
+        print("\n[RUSH HOUR] Lunch rush starting!\n")
+    when shift_time == 25:
+        print("\n[CALM] Rush hour ending\n")
+
+# Main restaurant controller
+main:
+    # Open restaurant
+    when restaurant_open == 0:
+        open_restaurant()
+        order_generator.start()
+        kitchen.start()
+        waiter.start()
+        manager_check.start()
+        shift_tracker.start()
+        restaurant_open = 1
+
+    # Check for closing time
+    when shift_time >= 30:
+        print("\n====================================")
+        print("        CLOSING TIME!")
+        print("====================================")
+        order_generator.stop()
+
+        # Wait for remaining orders to complete
+        when orders_pending == 0:
+            when orders_cooking == 0:
+                when orders_ready == 0:
+                    kitchen.stop()
+                    waiter.stop()
+                    manager_check.stop()
+                    shift_tracker.stop()
+
+                    print("\nFINAL REPORT:")
+                    print("Customers served:", customers_served)
+                    print("Total revenue: $", total_revenue)
+                    print("Final satisfaction:", customer_satisfaction, "%")
+
+                    when customer_satisfaction >= 90:
+                        print("Rating: EXCELLENT!")
+                    when customer_satisfaction >= 70:
+                        when customer_satisfaction < 90:
+                            print("Rating: GOOD")
+                    when customer_satisfaction < 70:
+                        print("Rating: NEEDS IMPROVEMENT")
+
+                    print("\nRestaurant closed. Good night!")
+                    exit()

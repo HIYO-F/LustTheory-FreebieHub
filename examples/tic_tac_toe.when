@@ -1,0 +1,351 @@
+# Tic Tac Toe Game in WHEN
+# Player is O, AI is X
+
+# Board state (0=empty, 1=X, 2=O)
+pos1 = 0
+pos2 = 0
+pos3 = 0
+pos4 = 0
+pos5 = 0
+pos6 = 0
+pos7 = 0
+pos8 = 0
+pos9 = 0
+
+# Game state
+current_turn = "player"  # player or ai
+game_over = 0
+winner = "none"  # none, player, ai, tie
+moves_made = 0
+waiting_for_input = 0
+
+# AI state
+ai_thinking = 0
+ai_choice = 0
+
+# System state
+game_started = 0
+
+# Helper function to get display symbol
+def get_symbol(pos):
+    when pos == 0:
+        return " "
+    when pos == 1:
+        return "X"
+    when pos == 2:
+        return "O"
+    return " "
+
+# Display the board
+os show_board():
+    print("\n     |     |     ")
+    print("  ", get_symbol(pos1), " | ", get_symbol(pos2), " | ", get_symbol(pos3))
+    print("_____|_____|_____")
+    print("     |     |     ")
+    print("  ", get_symbol(pos4), " | ", get_symbol(pos5), " | ", get_symbol(pos6))
+    print("_____|_____|_____")
+    print("     |     |     ")
+    print("  ", get_symbol(pos7), " | ", get_symbol(pos8), " | ", get_symbol(pos9))
+    print("     |     |     \n")
+
+# Check for winner
+os check_winner():
+    # Check rows
+    when pos1 == pos2:
+        when pos2 == pos3:
+            when pos1 > 0:
+                game_over = 1
+                when pos1 == 1:
+                    winner = "ai"
+                when pos1 == 2:
+                    winner = "player"
+
+    when pos4 == pos5:
+        when pos5 == pos6:
+            when pos4 > 0:
+                game_over = 1
+                when pos4 == 1:
+                    winner = "ai"
+                when pos4 == 2:
+                    winner = "player"
+
+    when pos7 == pos8:
+        when pos8 == pos9:
+            when pos7 > 0:
+                game_over = 1
+                when pos7 == 1:
+                    winner = "ai"
+                when pos7 == 2:
+                    winner = "player"
+
+    # Check columns
+    when pos1 == pos4:
+        when pos4 == pos7:
+            when pos1 > 0:
+                game_over = 1
+                when pos1 == 1:
+                    winner = "ai"
+                when pos1 == 2:
+                    winner = "player"
+
+    when pos2 == pos5:
+        when pos5 == pos8:
+            when pos2 > 0:
+                game_over = 1
+                when pos2 == 1:
+                    winner = "ai"
+                when pos2 == 2:
+                    winner = "player"
+
+    when pos3 == pos6:
+        when pos6 == pos9:
+            when pos3 > 0:
+                game_over = 1
+                when pos3 == 1:
+                    winner = "ai"
+                when pos3 == 2:
+                    winner = "player"
+
+    # Check diagonals
+    when pos1 == pos5:
+        when pos5 == pos9:
+            when pos1 > 0:
+                game_over = 1
+                when pos1 == 1:
+                    winner = "ai"
+                when pos1 == 2:
+                    winner = "player"
+
+    when pos3 == pos5:
+        when pos5 == pos7:
+            when pos3 > 0:
+                game_over = 1
+                when pos3 == 1:
+                    winner = "ai"
+                when pos3 == 2:
+                    winner = "player"
+
+    # Check for tie
+    when moves_made == 9:
+        when game_over == 0:
+            game_over = 1
+            winner = "tie"
+
+# Player move handler
+os get_player_move():
+    print("Your turn (O)! Enter position (1-9):")
+    print("1|2|3")
+    print("4|5|6")
+    print("7|8|9")
+
+    move = input()
+    move_num = int(move)
+
+    # Validate and make move
+    valid = 0
+    when move_num == 1:
+        when pos1 == 0:
+            pos1 = 2
+            valid = 1
+    when move_num == 2:
+        when pos2 == 0:
+            pos2 = 2
+            valid = 1
+    when move_num == 3:
+        when pos3 == 0:
+            pos3 = 2
+            valid = 1
+    when move_num == 4:
+        when pos4 == 0:
+            pos4 = 2
+            valid = 1
+    when move_num == 5:
+        when pos5 == 0:
+            pos5 = 2
+            valid = 1
+    when move_num == 6:
+        when pos6 == 0:
+            pos6 = 2
+            valid = 1
+    when move_num == 7:
+        when pos7 == 0:
+            pos7 = 2
+            valid = 1
+    when move_num == 8:
+        when pos8 == 0:
+            pos8 = 2
+            valid = 1
+    when move_num == 9:
+        when pos9 == 0:
+            pos9 = 2
+            valid = 1
+
+    when valid == 1:
+        moves_made = moves_made + 1
+        current_turn = "ai"
+        waiting_for_input = 0
+        print("You placed O at position", move_num)
+    when valid == 0:
+        print("Invalid move! Position already taken or out of range.")
+        waiting_for_input = 1
+
+# AI move calculator (simple strategy)
+os calculate_ai_move():
+    ai_choice = 0
+
+    # First priority: Take center if available
+    when pos5 == 0:
+        ai_choice = 5
+
+    # Second priority: Take corners
+    when ai_choice == 0:
+        when pos1 == 0:
+            ai_choice = 1
+        when ai_choice == 0:
+            when pos3 == 0:
+                ai_choice = 3
+            when ai_choice == 0:
+                when pos7 == 0:
+                    ai_choice = 7
+                when ai_choice == 0:
+                    when pos9 == 0:
+                        ai_choice = 9
+
+    # Third priority: Block player winning moves (check for two O's in a row)
+    # Check rows for blocking
+    when ai_choice == 0:
+        # Row 1
+        when pos1 == 2:
+            when pos2 == 2:
+                when pos3 == 0:
+                    ai_choice = 3
+        when pos2 == 2:
+            when pos3 == 2:
+                when pos1 == 0:
+                    ai_choice = 1
+        when pos1 == 2:
+            when pos3 == 2:
+                when pos2 == 0:
+                    ai_choice = 2
+
+    # Fourth priority: Take any available edge
+    when ai_choice == 0:
+        when pos2 == 0:
+            ai_choice = 2
+        when ai_choice == 0:
+            when pos4 == 0:
+                ai_choice = 4
+            when ai_choice == 0:
+                when pos6 == 0:
+                    ai_choice = 6
+                when ai_choice == 0:
+                    when pos8 == 0:
+                        ai_choice = 8
+
+    # Make the move
+    when ai_choice == 1:
+        pos1 = 1
+    when ai_choice == 2:
+        pos2 = 1
+    when ai_choice == 3:
+        pos3 = 1
+    when ai_choice == 4:
+        pos4 = 1
+    when ai_choice == 5:
+        pos5 = 1
+    when ai_choice == 6:
+        pos6 = 1
+    when ai_choice == 7:
+        pos7 = 1
+    when ai_choice == 8:
+        pos8 = 1
+    when ai_choice == 9:
+        pos9 = 1
+
+    print("AI (X) placed at position", ai_choice)
+    moves_made = moves_made + 1
+    ai_thinking = 0
+
+# Game controller
+fo game_controller():
+    when game_over == 0:
+        # Player's turn
+        when current_turn == "player":
+            when waiting_for_input == 0:
+                waiting_for_input = 1
+
+        # AI's turn
+        when current_turn == "ai":
+            when ai_thinking == 0:
+                ai_thinking = 1
+                print("\nAI is thinking...")
+                sleep(1)
+                calculate_ai_move()
+                current_turn = "player"
+                show_board()
+                check_winner()
+
+# Main game loop
+main:
+    # Initialize game
+    when game_started == 0:
+        print("============================")
+        print("     TIC TAC TOE")
+        print("============================")
+        print("You are O, AI is X")
+        print("")
+        show_board()
+        game_controller.start()
+        game_started = 1
+        waiting_for_input = 1
+
+    # Handle player input
+    when waiting_for_input == 1:
+        when game_over == 0:
+            get_player_move()
+            when waiting_for_input == 0:
+                show_board()
+                check_winner()
+
+    # Game over handling
+    when game_over == 1:
+        game_controller.stop()
+
+        when winner == "player":
+            print("\n*** CONGRATULATIONS! You won! ***")
+        when winner == "ai":
+            print("\n*** AI wins! Better luck next time! ***")
+        when winner == "tie":
+            print("\n*** It's a tie! ***")
+
+        print("\nPlay again? (y/n):")
+        answer = input()
+
+        when answer == "y":
+            # Reset board
+            pos1 = 0
+            pos2 = 0
+            pos3 = 0
+            pos4 = 0
+            pos5 = 0
+            pos6 = 0
+            pos7 = 0
+            pos8 = 0
+            pos9 = 0
+
+            # Reset game state
+            current_turn = "player"
+            game_over = 0
+            winner = "none"
+            moves_made = 0
+            waiting_for_input = 1
+            ai_thinking = 0
+            ai_choice = 0
+
+            print("\n====== NEW GAME ======")
+            show_board()
+            game_controller.start()
+
+        when answer == "n":
+            print("Thanks for playing!")
+            exit()
