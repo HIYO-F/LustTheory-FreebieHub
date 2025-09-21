@@ -127,6 +127,12 @@ class UnaryOp(Expression):
 class CallExpression(Expression):
     name: str
     args: List[Expression]
+    kwargs: List['KeywordArg'] = None
+
+@dataclass
+class KeywordArg(ASTNode):
+    name: str
+    value: Expression
 
 @dataclass
 class StartExpression(Expression):
@@ -179,3 +185,4 @@ class MethodCall(Expression):
     object: Expression
     method: str
     args: List[Expression]
+    kwargs: List['KeywordArg'] = None

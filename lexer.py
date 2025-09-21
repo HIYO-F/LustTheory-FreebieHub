@@ -42,6 +42,7 @@ class TokenType(Enum):
     MINUS = auto()
     MULTIPLY = auto()
     DIVIDE = auto()
+    MODULO = auto()
     EQ = auto()
     NE = auto()
     LT = auto()
@@ -49,6 +50,10 @@ class TokenType(Enum):
     LE = auto()
     GE = auto()
     DOT = auto()
+    AND = auto()
+    OR = auto()
+    NOT = auto()
+    IN = auto()
 
     # Delimiters
     COLON = auto()
@@ -171,6 +176,10 @@ class Lexer:
             'True': TokenType.TRUE,
             'False': TokenType.FALSE,
             'None': TokenType.NONE,
+            'and': TokenType.AND,
+            'or': TokenType.OR,
+            'not': TokenType.NOT,
+            'in': TokenType.IN,
         }
 
         token_type = keywords.get(ident, TokenType.IDENTIFIER)
@@ -260,6 +269,7 @@ class Lexer:
                 '-': TokenType.MINUS,
                 '*': TokenType.MULTIPLY,
                 '/': TokenType.DIVIDE,
+                '%': TokenType.MODULO,
                 '<': TokenType.LT,
                 '>': TokenType.GT,
                 '.': TokenType.DOT,

@@ -231,10 +231,21 @@ class Parser:
             return PassStatement()
         elif token.type == TokenType.RETURN:
             self.advance()
-            value = None
+            values = []
             if self.current_token().type not in [TokenType.NEWLINE, TokenType.EOF]:
-                value = self.parse_expression()
-            return ReturnStatement(value)
+                values.append(self.parse_expression())
+                while self.current_token().type == TokenType.COMMA:
+                    self.advance()
+                    values.append(self.parse_expression())
+            return ReturnStatement(values)
+        elif token.type == TokenType.GLOBAL:
+            self.advance()
+            names = []
+            names.append(self.expect(TokenType.IDENTIFIER).value)
+            while self.current_token().type == TokenType.COMMA:
+                self.advance()
+                names.append(self.expect(TokenType.IDENTIFIER).value)
+            return GlobalStatement(names)
         elif token.type == TokenType.IDENTIFIER:
             if self.peek_token().type == TokenType.ASSIGN:
                 name = self.advance().value
@@ -267,12 +278,41 @@ class Parser:
         return self.parse_comparison()
 
     def parse_comparison(self) -> Expression:
-        left = self.parse_addition()
+        left = self.parse_logical_and()
 
         while self.current_token().type in [TokenType.EQ, TokenType.NE, TokenType.LT,
-                                           TokenType.GT, TokenType.LE, TokenType.GE]:
-            op_token = self.advance()
-            op = op_token.value if op_token.value else op_token.type.name.lower()
+                                           TokenType.GT, TokenType.LE, TokenType.GE, TokenType.IN, TokenType.NOT]:
+
+            # Handle "not in" compound operator
+            if self.current_token().type == TokenType.NOT and self.peek_token().type == TokenType.IN:
+                self.advance()  # consume "not"
+                self.advance()  # consume "in"
+                op = "not in"
+                right = self.parse_logical_and()
+                left = BinaryOp(left, op, right)
+            else:
+                op_token = self.advance()
+                op = op_token.value if op_token.value else op_token.type.name.lower()
+                right = self.parse_logical_and()
+                left = BinaryOp(left, op, right)
+
+        return left
+
+    def parse_logical_and(self) -> Expression:
+        left = self.parse_logical_or()
+
+        while self.current_token().type == TokenType.AND:
+            op = self.advance().value
+            right = self.parse_logical_or()
+            left = BinaryOp(left, op, right)
+
+        return left
+
+    def parse_logical_or(self) -> Expression:
+        left = self.parse_addition()
+
+        while self.current_token().type == TokenType.OR:
+            op = self.advance().value
             right = self.parse_addition()
             left = BinaryOp(left, op, right)
 
@@ -289,14 +329,45 @@ class Parser:
         return left
 
     def parse_multiplication(self) -> Expression:
-        left = self.parse_primary()
+        left = self.parse_unary()
 
-        while self.current_token().type in [TokenType.MULTIPLY, TokenType.DIVIDE]:
+        while self.current_token().type in [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.MODULO]:
             op = self.advance().value
-            right = self.parse_primary()
+            right = self.parse_unary()
             left = BinaryOp(left, op, right)
 
         return left
+
+    def parse_unary(self) -> Expression:
+        if self.current_token().type == TokenType.MINUS:
+            op = self.advance().value
+            operand = self.parse_unary()
+            return UnaryOp(op, operand)
+        elif self.current_token().type == TokenType.NOT:
+            # Check for "not in" compound operator
+            if self.peek_token().type == TokenType.IN:
+                # This is "not in" - let the comparison parser handle it
+                return self.parse_postfix()
+            else:
+                # Regular "not" unary operator
+                op = self.advance().value
+                operand = self.parse_unary()
+                return UnaryOp(op, operand)
+        return self.parse_postfix()
+
+    def parse_postfix(self) -> Expression:
+        expr = self.parse_primary()
+
+        while True:
+            if self.current_token().type == TokenType.LBRACKET:
+                self.advance()
+                index = self.parse_expression()
+                self.expect(TokenType.RBRACKET)
+                expr = IndexExpression(expr, index)
+            else:
+                break
+
+        return expr
 
     def parse_primary(self) -> Expression:
         token = self.current_token()
@@ -307,6 +378,54 @@ class Parser:
         elif token.type == TokenType.STRING:
             self.advance()
             return StringLiteral(token.value)
+        elif token.type == TokenType.TRUE:
+            self.advance()
+            return BooleanLiteral(True)
+        elif token.type == TokenType.FALSE:
+            self.advance()
+            return BooleanLiteral(False)
+        elif token.type == TokenType.NONE:
+            self.advance()
+            return NoneLiteral()
+        elif token.type == TokenType.LBRACKET:
+            return self.parse_list()
+        elif token.type == TokenType.LPAREN:
+            # Check if this is a tuple or just a parenthesized expression
+            self.advance()
+
+            # Empty tuple case
+            if self.current_token().type == TokenType.RPAREN:
+                self.advance()
+                return TupleLiteral([])
+
+            # Parse first element
+            first_expr = self.parse_expression()
+
+            # If we see a comma, it's definitely a tuple
+            if self.current_token().type == TokenType.COMMA:
+                elements = [first_expr]
+                self.advance()  # consume comma
+
+                # Parse remaining elements
+                while self.current_token().type != TokenType.RPAREN:
+                    elements.append(self.parse_expression())
+                    if self.current_token().type == TokenType.COMMA:
+                        self.advance()
+                    elif self.current_token().type != TokenType.RPAREN:
+                        break
+
+                self.expect(TokenType.RPAREN)
+                return TupleLiteral(elements)
+            else:
+                # Single element in parentheses - check for trailing comma to disambiguate
+                if self.current_token().type == TokenType.COMMA:
+                    self.advance()  # consume trailing comma
+                    self.expect(TokenType.RPAREN)
+                    return TupleLiteral([first_expr])
+                else:
+                    # Just a parenthesized expression
+                    self.expect(TokenType.RPAREN)
+                    return first_expr
         elif token.type == TokenType.IDENTIFIER:
             name = self.advance().value
 
@@ -314,50 +433,97 @@ class Parser:
             if self.current_token().type == TokenType.LPAREN:
                 self.advance()
                 args = []
+                kwargs = []
+
                 while self.current_token().type != TokenType.RPAREN:
-                    args.append(self.parse_expression())
+                    # Check if this is a keyword argument (identifier=value)
+                    if (self.current_token().type == TokenType.IDENTIFIER and
+                        self.peek_token().type == TokenType.ASSIGN):
+
+                        kw_name = self.advance().value
+                        self.advance()  # consume =
+                        kw_value = self.parse_expression()
+                        kwargs.append(KeywordArg(kw_name, kw_value))
+                    else:
+                        # Regular positional argument
+                        args.append(self.parse_expression())
+
                     if self.current_token().type == TokenType.COMMA:
                         self.advance()
+
                 self.expect(TokenType.RPAREN)
-                return CallExpression(name, args)
-            # Check for member access (.start, .stop)
+                return CallExpression(name, args, kwargs if kwargs else None)
+            # Check for member access (.start, .stop) or chained member/method access
             elif self.current_token().type == TokenType.DOT:
-                self.advance()
-                # Check if next token is a keyword that would normally be an identifier
-                if self.current_token().type in [TokenType.START, TokenType.STOP]:
-                    member = self.advance().value
-                else:
-                    member = self.expect(TokenType.IDENTIFIER).value
-                if member == "start":
-                    if self.current_token().type == TokenType.LPAREN:
-                        self.advance()
-                        self.expect(TokenType.RPAREN)
-                    return StartExpression(name)
-                elif member == "stop":
-                    if self.current_token().type == TokenType.LPAREN:
-                        self.advance()
-                        self.expect(TokenType.RPAREN)
-                    return StopExpression(name)
-                else:
-                    # Check if this is a method call
-                    if self.current_token().type == TokenType.LPAREN:
-                        self.advance()
-                        args = []
-                        while self.current_token().type != TokenType.RPAREN:
-                            args.append(self.parse_expression())
-                            if self.current_token().type == TokenType.COMMA:
-                                self.advance()
-                        self.expect(TokenType.RPAREN)
-                        # Return a special method call expression
-                        return MethodCall(Identifier(name), member, args)
+                expr = Identifier(name)
+
+                # Handle chained dot access
+                while self.current_token().type == TokenType.DOT:
+                    self.advance()
+
+                    # Check if next token is a keyword that would normally be an identifier
+                    if self.current_token().type in [TokenType.START, TokenType.STOP]:
+                        member = self.advance().value
                     else:
-                        return MemberAccess(Identifier(name), member)
+                        member = self.expect(TokenType.IDENTIFIER).value
+
+                    # Special handling for .start() and .stop()
+                    if member == "start" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return StartExpression(expr.name)
+                    elif member == "stop" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return StopExpression(expr.name)
+                    else:
+                        # Check if this is a method call
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            args = []
+                            kwargs = []
+
+                            while self.current_token().type != TokenType.RPAREN:
+                                # Check if this is a keyword argument (identifier=value)
+                                if (self.current_token().type == TokenType.IDENTIFIER and
+                                    self.peek_token().type == TokenType.ASSIGN):
+
+                                    kw_name = self.advance().value
+                                    self.advance()  # consume =
+                                    kw_value = self.parse_expression()
+                                    kwargs.append(KeywordArg(kw_name, kw_value))
+                                else:
+                                    # Regular positional argument
+                                    args.append(self.parse_expression())
+
+                                if self.current_token().type == TokenType.COMMA:
+                                    self.advance()
+
+                            self.expect(TokenType.RPAREN)
+                            # Create method call with current expression as object
+                            expr = MethodCall(expr, member, args, kwargs if kwargs else None)
+                        else:
+                            # Regular member access
+                            expr = MemberAccess(expr, member)
+
+                return expr
             else:
                 return Identifier(name)
-        elif token.type == TokenType.LPAREN:
-            self.advance()
-            expr = self.parse_expression()
-            self.expect(TokenType.RPAREN)
-            return expr
-
         raise SyntaxError(f"Unexpected token {token.type} at line {token.line}")
+
+    def parse_list(self) -> ListLiteral:
+        self.expect(TokenType.LBRACKET)
+        elements = []
+
+        if self.current_token().type != TokenType.RBRACKET:
+            elements.append(self.parse_expression())
+            while self.current_token().type == TokenType.COMMA:
+                self.advance()
+                if self.current_token().type == TokenType.RBRACKET:
+                    break  # trailing comma
+                elements.append(self.parse_expression())
+
+        self.expect(TokenType.RBRACKET)
+        return ListLiteral(elements)
