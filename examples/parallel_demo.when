@@ -1,0 +1,99 @@
+# Parallel Execution Demo in WHEN
+# Shows the difference between cooperative and parallel blocks
+
+import time
+
+# Shared variables
+shared_counter = 0
+cooperative_done = 0
+parallel_done = 0
+main_ticks = 0
+
+# Cooperative blocks (run in main thread)
+de coop_counter(5):
+    shared_counter = shared_counter + 1
+    print("[COOP] Counter:", shared_counter)
+    sleep(0.3)
+
+fo coop_monitor():
+    print("[COOP] Monitoring... counter =", shared_counter)
+    sleep(0.5)
+    when shared_counter >= 5:
+        cooperative_done = 1
+        break
+
+# Parallel blocks (run in separate threads)
+parallel de para_counter(5):
+    shared_counter = shared_counter + 100
+    print("[PARA] Counter:", shared_counter)
+    sleep(0.2)
+
+parallel fo para_monitor():
+    print("[PARA] Background monitoring... counter =", shared_counter)
+    sleep(0.4)
+    when shared_counter >= 500:
+        parallel_done = 1
+        break
+
+# Heavy computation in parallel
+parallel fo heavy_compute():
+    i = 0
+    when i < 1000000:
+        i = i + 1
+        when i == 500000:
+            print("[PARA] Heavy computation halfway...")
+        when i == 1000000:
+            print("[PARA] Heavy computation complete!")
+            break
+
+# Main orchestrator
+main:
+    when main_ticks == 0:
+        print("=== PARALLEL vs COOPERATIVE DEMO ===")
+        print("Watch how parallel blocks run simultaneously!")
+        print("")
+
+        # Start cooperative blocks
+        print("Starting cooperative blocks...")
+        coop_counter.start()
+        coop_monitor.start()
+
+        # Start parallel blocks
+        print("Starting parallel blocks...")
+        para_counter.start()
+        para_monitor.start()
+        heavy_compute.start()
+
+        main_ticks = 1
+
+    # Main loop shows it keeps running
+    main_ticks = main_ticks + 1
+    print("[MAIN] Main loop tick", main_ticks, "- counter:", shared_counter)
+    sleep(0.1)
+
+    # Check completion
+    when cooperative_done == 1:
+        when parallel_done == 1:
+            print("\n=== DEMO COMPLETE ===")
+            print("Notice how:")
+            print("- Cooperative blocks took turns in main thread")
+            print("- Parallel blocks ran simultaneously in background")
+            print("- Heavy computation didn't block main loop")
+            print("- All blocks shared the same variables safely")
+
+            # Stop remaining blocks
+            coop_monitor.stop()
+            para_monitor.stop()
+            heavy_compute.stop()
+
+            exit()
+
+    # Safety timeout
+    when main_ticks > 100:
+        print("Demo timeout - stopping all blocks")
+        coop_counter.stop()
+        coop_monitor.stop()
+        para_counter.stop()
+        para_monitor.stop()
+        heavy_compute.stop()
+        exit()

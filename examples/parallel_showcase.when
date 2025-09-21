@@ -1,0 +1,106 @@
+# WHEN Language Parallel Execution Showcase
+import time
+
+# Shared state
+work_done = 0
+background_checks = 0
+cpu_intensive_done = 0
+main_loops = 0
+
+# Helper function
+def fibonacci(n):
+    when n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# Cooperative block (runs in main thread)
+de main_work(5):
+    work_done = work_done + 1
+    print("[MAIN THREAD] Main work step", work_done, "/5")
+    sleep(0.4)
+
+# Parallel background monitoring
+parallel fo background_monitor():
+    background_checks = background_checks + 1
+    print("    [BACKGROUND] Health check #", background_checks)
+    sleep(0.3)
+    when background_checks >= 15:
+        print("    [BACKGROUND] Monitoring complete")
+        break
+
+# Parallel CPU-intensive work
+parallel fo cpu_work():
+    print("    [CPU THREAD] Starting intensive computation...")
+    result = fibonacci(20)
+    print("    [CPU THREAD] Computed fibonacci(20) =", result)
+    cpu_intensive_done = 1
+    break
+
+# Parallel data processing simulation
+parallel de data_processor(8):
+    batch = work_done * 10
+    print("    [DATA THREAD] Processing batch", batch)
+    sleep(0.2)
+
+# Main orchestrator
+main:
+    main_loops = main_loops + 1
+
+    # Setup phase
+    when main_loops == 1:
+        print("*** WHEN Language Parallel Execution Demo ***")
+        print("=" * 50)
+        print("This demo shows:")
+        print("- Cooperative blocks (main thread)")
+        print("- Parallel background monitoring")
+        print("- Parallel CPU-intensive computation")
+        print("- Parallel data processing")
+        print("- All sharing variables safely")
+        print("")
+
+        # Start all blocks
+        main_work.start()
+        background_monitor.start()
+        cpu_work.start()
+        data_processor.start()
+
+    # Progress reporting
+    when main_loops == 10:
+        print("*** Mid-demo status:")
+        print("   Work done:", work_done, "/5")
+        print("   Background checks:", background_checks)
+        print("   CPU work done:", cpu_intensive_done)
+
+    # Show main thread is responsive
+    when main_loops > 1:
+        when main_loops < 30:
+            sleep(0.1)  # Main thread stays responsive
+
+    # Completion check
+    when work_done >= 5:
+        when cpu_intensive_done >= 1:
+            print("\n*** Demo Complete")
+            print("*** Final Statistics:")
+            print("   Main loops executed:", main_loops)
+            print("   Work completed:", work_done)
+            print("   Background checks:", background_checks)
+            print("   CPU intensive tasks:", cpu_intensive_done)
+            print("")
+            print("*** Key Achievements:")
+            print("- Main thread stayed responsive throughout")
+            print("- Multiple parallel threads ran simultaneously")
+            print("- Shared variables updated safely")
+            print("- No threading complexity in WHEN code")
+
+            # Clean shutdown
+            background_monitor.stop()
+            data_processor.stop()
+            exit()
+
+    # Safety timeout
+    when main_loops > 100:
+        print("*** Demo timeout reached")
+        background_monitor.stop()
+        cpu_work.stop()
+        data_processor.stop()
+        exit()
