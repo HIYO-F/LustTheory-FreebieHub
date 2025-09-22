@@ -1,0 +1,116 @@
+# Save/Restore Demo
+# This example demonstrates the new save/restore functionality for blocks
+#
+# Run with: when --hot-reload save_restore_demo.when
+#
+# Try these commands while running:
+# 1. counter.save() - Save current state
+# 2. counter.savestop() - Save and stop
+# 3. counter.startsave() - Start from saved checkpoint
+# 4. Add/remove these commands and save the file to test hot reload + save/restore
+
+from time import sleep
+
+# State variables
+counter = 0
+phase = 1
+demo_step = 0
+
+# A declarative block that runs exactly 15 times
+de progress_tracker(15):
+    progress = progress_tracker.current_iteration + 1
+    print(f"[PROGRESS] Step {progress}/15 - Phase {phase}")
+
+    when progress == 5:
+        print("*** PROGRESS: Reached checkpoint 1 - save your state now! ***")
+
+    when progress == 10:
+        print("*** PROGRESS: Reached checkpoint 2 - another save opportunity! ***")
+
+    sleep(1)
+
+# A forever block for continuous counting
+fo counter():
+    counter = counter + 1
+    print(f"[COUNTER] Count: {counter} (Phase {phase})")
+
+    when counter % 7 == 0:
+        print(f"*** COUNTER: Multiple of 7 reached ({counter}) - good save point! ***")
+
+    when counter >= 50:
+        print("COUNTER: Reached maximum count!")
+        counter.savestop()
+        break
+
+    sleep(2)
+
+# Demo control block
+fo demo_controller():
+    demo_step = demo_step + 1
+
+    when demo_step == 10:
+        print("\n=== DEMO: Auto-saving progress tracker ===")
+        progress_tracker.save()
+
+    when demo_step == 20:
+        print("\n=== DEMO: Entering Phase 2 ===")
+        phase = 2
+        counter.save()
+
+    when demo_step == 35:
+        print("\n=== DEMO: Auto-saving and stopping counter ===")
+        counter.savestop()
+
+    when demo_step == 40:
+        print("\n=== DEMO: Restarting counter from saved state ===")
+        counter.startsave()
+
+    when demo_step >= 60:
+        print("=== DEMO COMPLETE ===")
+        demo_controller.stop()
+        break
+
+    sleep(1)
+
+main:
+    when demo_step == 0:
+        print("=== SAVE/RESTORE DEMO STARTED ===")
+        print("This demo shows block save/restore functionality:")
+        print("- .save() - Save current execution state")
+        print("- .savestop() - Save state and stop block")
+        print("- .startsave() - Start from saved state (or beginning if none)")
+        print("")
+        print("Watch for checkpoint messages and try manual save/restore!")
+        print("Edit this file to add save/restore commands while running!")
+        print("")
+
+        progress_tracker.start()
+        counter.start()
+        demo_controller.start()
+
+    # Manual test commands - uncomment these and save the file while running!
+
+    # Uncomment to manually save progress:
+    # when demo_step == 15:
+    #     progress_tracker.save()
+    #     print("*** MANUAL: Progress tracker saved! ***")
+
+    # Uncomment to test manual save/restore cycle:
+    # when demo_step == 25:
+    #     counter.savestop()
+    #     print("*** MANUAL: Counter saved and stopped! ***")
+    #
+    # when demo_step == 30:
+    #     counter.startsave()
+    #     print("*** MANUAL: Counter restarted from save! ***")
+
+    # Uncomment to test progress restart:
+    # when demo_step == 45:
+    #     progress_tracker.stop()
+    #     progress_tracker.startsave()
+    #     print("*** MANUAL: Progress tracker restarted from save! ***")
+
+    when demo_step >= 60:
+        print("\nTry editing this file to add save/restore commands!")
+        print("The hot reload will pick up your changes instantly!")
+        exit()

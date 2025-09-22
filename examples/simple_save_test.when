@@ -1,0 +1,35 @@
+# Simple Save/Restore Test
+# A minimal example to test save/restore functionality
+
+from time import sleep
+
+# Simple counter
+counter = 0
+saved_at = 0
+
+# Test block that runs exactly 10 times
+de test_block(10):
+    counter = counter + 1
+    print(f"Step {counter}")
+
+    when counter == 5:
+        print("*** SAVING at step 5 ***")
+        test_block.save()
+        saved_at = counter
+
+    when counter == 7:
+        print("*** STOPPING and restarting from save ***")
+        test_block.savestop()
+        test_block.startsave()
+        print(f"*** RESUMED from step {saved_at} ***")
+
+    sleep(1)
+
+main:
+    when counter == 0:
+        print("=== SIMPLE SAVE TEST ===")
+        test_block.start()
+
+    when counter >= 10:
+        print("Test complete!")
+        exit()

@@ -1,0 +1,97 @@
+# Discard Demo
+# This example demonstrates the .discard() functionality
+# Run with: when --hot-reload discard_demo.when
+
+from time import sleep
+
+# Demo state
+step = 0
+demo_phase = 1
+
+# A test block that demonstrates save/discard scenarios
+de test_block(15):
+    step = step + 1
+    print(f"Phase {demo_phase} - Step {step}")
+
+    # Phase 1: Normal save/discard cycle
+    when demo_phase == 1:
+        when step == 3:
+            print("*** SAVING at step 3 ***")
+            test_block.save()
+
+        when step == 5:
+            print("*** DISCARDING saved state ***")
+            test_block.discard()
+
+        when step == 7:
+            print("*** TRYING TO DISCARD AGAIN (should show error) ***")
+            test_block.discard()
+
+        when step == 10:
+            demo_phase = 2
+            print("\n=== PHASE 2: Save and Restart Demo ===")
+
+    # Phase 2: Save, stop, restart, discard
+    when demo_phase == 2:
+        when step == 12:
+            print("*** SAVING and STOPPING ***")
+            test_block.savestop()
+            test_block.startsave()
+
+        when step == 14:
+            print("*** DISCARDING current save ***")
+            test_block.discard()
+
+        when step == 15:
+            demo_phase = 3
+            print("\n=== PHASE 3: Error Demo ===")
+
+    # Phase 3: Multiple discard attempts
+    when demo_phase == 3:
+        when step == 17:
+            print("*** TRYING TO DISCARD WITH NO SAVE (should error) ***")
+            test_block.discard()
+
+        when step == 18:
+            print("*** SAVING again ***")
+            test_block.save()
+
+        when step == 19:
+            print("*** DISCARDING the save ***")
+            test_block.discard()
+
+        when step == 20:
+            print("*** TRYING TO DISCARD AGAIN (should error) ***")
+            test_block.discard()
+
+    sleep(1)
+
+# Control block for demo phases
+fo demo_controller():
+    when demo_phase == 3:
+        when step >= 21:
+            print("\n=== DEMO COMPLETE ===")
+            print("Key behaviors demonstrated:")
+            print("1. .discard() removes saved state when present")
+            print("2. .discard() shows helpful error when no save exists")
+            print("3. .discard() is safe to call multiple times")
+            print("4. Works with .save(), .savestop(), .startsave() flow")
+            demo_controller.stop()
+
+    sleep(2)
+
+main:
+    when step == 0:
+        print("=== DISCARD FUNCTIONALITY DEMO ===")
+        print("This demo shows .discard() behavior:")
+        print("- Discards saved state when present")
+        print("- Shows helpful error when no save exists")
+        print("- Integrates with save/restore workflow")
+        print("")
+
+        test_block.start()
+        demo_controller.start()
+
+    when step >= 25:
+        print("Demo finished!")
+        exit()

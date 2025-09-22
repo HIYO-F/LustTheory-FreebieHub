@@ -6,6 +6,7 @@ A command-line tool for running WHEN programs
 Usage:
     when <filename.when>     - Run a WHEN program
     when -i                  - Interactive REPL mode
+    when --hot-reload <filename.when> - Run with hot reload enabled
     when --version          - Show version
     when --help             - Show this help
 """
@@ -31,7 +32,7 @@ def show_version():
     print(f"WHEN Language Interpreter v{__version__}")
     print("Built on Python", sys.version)
 
-def run_file(filename: str):
+def run_file(filename: str, hot_reload: bool = False):
     """Run a WHEN program from a file"""
     try:
         if not os.path.exists(filename):
@@ -52,8 +53,8 @@ def run_file(filename: str):
         parser = Parser(tokens)
         ast = parser.parse()
 
-        # Interpret
-        interpreter = Interpreter()
+        # Interpret with hot reload if enabled
+        interpreter = Interpreter(enable_hot_reload=hot_reload, source_file=filename)
         interpreter.interpret(ast)
 
     except FileNotFoundError:
@@ -127,6 +128,12 @@ def main():
         show_version()
     elif arg in ['-i', '--interactive']:
         interactive_mode()
+    elif arg == '--hot-reload':
+        if len(sys.argv) < 3:
+            print("Error: --hot-reload requires a filename")
+            print("Usage: when --hot-reload <filename.when>")
+            sys.exit(1)
+        run_file(sys.argv[2], hot_reload=True)
     elif arg.startswith('-'):
         print(f"Unknown option: {arg}")
         print("Use 'when --help' for usage information")

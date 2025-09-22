@@ -1,0 +1,59 @@
+# Save/Discard Cycle Example
+# Shows the complete save/discard workflow
+
+from time import sleep
+
+counter = 0
+choice = 1
+
+de worker(10):
+    counter = counter + 1
+    print(f"Working... step {counter}")
+
+    when counter == 3:
+        print("*** CHECKPOINT: Saving work ***")
+        worker.save()
+
+    when counter == 5:
+        when choice == 1:
+            print("*** DECISION: Keeping the save ***")
+            print("*** Starting fresh from checkpoint ***")
+            worker.savestop()
+            worker.startsave()
+            choice = 2
+
+        when choice == 2:
+            print("*** DECISION: Discarding the save ***")
+            print("*** Will lose checkpoint progress ***")
+            worker.discard()
+            choice = 3
+
+        when choice == 3:
+            print("*** TRYING TO DISCARD AGAIN (ERROR EXPECTED) ***")
+            worker.discard()
+            choice = 4
+
+    when counter == 8:
+        when choice == 4:
+            print("*** NEW SAVE: Creating another checkpoint ***")
+            worker.save()
+            choice = 5
+
+    when counter == 10:
+        when choice == 5:
+            print("*** FINAL: Discarding final save ***")
+            worker.discard()
+
+    sleep(1)
+
+main:
+    when counter == 0:
+        print("=== SAVE/DISCARD CYCLE ===")
+        print("Watch the complete workflow:")
+        print("save -> startsave -> discard -> error -> save -> discard")
+        print("")
+        worker.start()
+
+    when counter >= 10:
+        print("\nCycle complete!")
+        exit()

@@ -1,0 +1,68 @@
+# Checkpoint Example
+# Demonstrates save/restore with a simple checkpoint system
+#
+# Run with: when checkpoint_example.when
+
+from time import sleep
+
+# Game state
+level = 1
+lives = 3
+score = 0
+game_started = 0
+game_complete = 0
+
+# Player progress simulation
+de game_level(20):
+    score = score + level * 10
+
+    print(f"Level {level} - Step {game_level.current_iteration + 1}/20 - Score: {score} - Lives: {lives}")
+
+    # Checkpoint every 5 steps
+    when (game_level.current_iteration + 1) % 5 == 0:
+        print(f"*** CHECKPOINT REACHED at step {game_level.current_iteration + 1}! ***")
+        game_level.save()
+
+    # Random "death" simulation at step 7
+    when game_level.current_iteration + 1 == 7:
+        lives = lives - 1
+        print(f"*** OOPS! Lost a life! Lives remaining: {lives} ***")
+
+        when lives > 0:
+            print("*** RESPAWNING from last checkpoint! ***")
+            game_level.savestop()
+            game_level.startsave()
+
+        when lives <= 0:
+            print("*** GAME OVER! ***")
+            game_complete = 1
+            game_level.stop()
+
+    # Level completion - this fires when the DE block completes all 20 iterations
+    when game_level.current_iteration + 1 == 20:
+        level = level + 1
+        print(f"*** LEVEL {level - 1} COMPLETE! Moving to Level {level} ***")
+
+        when level <= 3:
+            # Reset for next level
+            game_level.start()
+
+        when level > 3:
+            print("*** CONGRATULATIONS! All levels complete! ***")
+            game_complete = 1
+
+    sleep(0.5)
+
+main:
+    when game_started == 0:
+        print("=== CHECKPOINT DEMO ===")
+        print("Watch the game auto-save at checkpoints")
+        print("and restore when the player 'dies'!")
+        print("")
+        game_started = 1
+        game_level.start()
+
+    when game_complete == 1:
+        print(f"\nFinal Score: {score}")
+        print("Demo complete!")
+        exit()

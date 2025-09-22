@@ -1,0 +1,87 @@
+# Live Development Example
+# This demonstrates developing a program in real-time with hot reload
+#
+# Run with: when --hot-reload live_dev_example.when
+# Then incrementally build your program by editing and saving!
+
+from time import sleep
+from random import randint
+
+# Game state (persists through reloads)
+player_health = 100
+enemy_health = 50
+round_count = 0
+game_over = 0
+
+# Attack simulator - edit damage values live!
+fo combat_engine():
+    # Player attacks
+    player_damage = randint(5, 15)  # Try changing these values!
+    enemy_health = enemy_health - player_damage
+    print(f"Player deals {player_damage} damage! Enemy health: {enemy_health}")
+    sleep(1)
+
+    when enemy_health <= 0:
+        print("Enemy defeated! Victory!")
+        game_over = 1
+        break
+
+    # Enemy attacks
+    enemy_damage = randint(3, 10)  # Adjust difficulty here!
+    player_health = player_health - enemy_damage
+    print(f"Enemy deals {enemy_damage} damage! Player health: {player_health}")
+    sleep(1)
+
+    when player_health <= 0:
+        print("Player defeated! Game Over!")
+        game_over = 1
+        break
+
+# Health regeneration - add this while game is running!
+fo healer():
+    when player_health < 100:
+        player_health = player_health + 2  # Regen rate
+        print(f"[Healing] Player health: {player_health}")
+    sleep(3)
+
+# Status display
+de status_display(100):
+    round_count = round_count + 1
+    print(f"\n--- Round {round_count} ---")
+    print(f"Player HP: {player_health} | Enemy HP: {enemy_health}")
+    sleep(2)
+
+    when game_over == 1:
+        break
+
+# NEW: Add special abilities while running!
+# Uncomment to add a special attack:
+# os special_attack():
+#     print("*** SPECIAL ATTACK ACTIVATED! ***")
+#     enemy_health = enemy_health - 30
+#     print(f"Massive damage dealt! Enemy health: {enemy_health}")
+
+main:
+    when round_count == 0:
+        print("=== LIVE DEVELOPMENT COMBAT GAME ===")
+        print("Edit the code while playing to:")
+        print("- Adjust damage values")
+        print("- Add healing abilities")
+        print("- Create special attacks")
+        print("- Modify game balance in real-time!\n")
+
+        status_display.start()
+        combat_engine.start()
+        # Uncomment to enable healing:
+        # healer.start()
+
+    # Trigger special attack (uncomment after adding the block above)
+    # when player_health < 30:
+    #     when enemy_health > 20:
+    #         special_attack()
+
+    when game_over == 1:
+        print("\n=== GAME ENDED ===")
+        print(f"Final Score - Rounds: {round_count}")
+        sleep(2)
+        exit()

@@ -1,0 +1,70 @@
+# Hot Reload Demo
+# This example demonstrates hot reloading of blocks
+#
+# Run with: when --hot-reload hot_reload_demo.when
+# Then edit this file while it's running to see blocks update in real-time!
+#
+# Try:
+# 1. Changing the greeting message in the greeter block
+# 2. Modifying the counter increment value
+# 3. Adding new blocks
+# 4. Removing blocks
+# 5. Changing iteration counts for DE blocks
+
+from time import sleep
+
+# State variables persist through reloads
+counter = 0
+greeting_count = 0
+
+# This block runs exactly 10 times
+# Try changing this number while running!
+de greeter(10):
+    greeting_count = greeting_count + 1
+    # Change this message and save to see it update!
+    print(f"[{greeting_count}] Hello from hot reload! Edit this message!")
+    sleep(1)
+
+# This block runs forever until stopped
+fo counter():
+    counter = counter + 1
+    # Try changing the increment value or the message!
+    print(f"Counter: {counter}")
+    sleep(2)
+
+    # Stop after 100 iterations
+    when counter >= 100:
+        print("Counter reached 100, stopping...")
+        break
+
+# Optional: Uncomment this block while running to add new functionality!
+# os announcer():
+#     print("*** NEW BLOCK ADDED VIA HOT RELOAD! ***")
+
+# Optional: Try adding a new forever block
+# fo status():
+#     print(f"Status - Greeting: {greeting_count}, Counter: {counter}")
+#     sleep(3)
+
+main:
+    # Start blocks on first iteration
+    when counter == 0:
+        print("=== HOT RELOAD DEMO STARTED ===")
+        print("Edit this file while it's running to see changes!")
+        print("")
+        greeter.start()
+        counter.start()
+        # Uncomment to activate new blocks:
+        # announcer()
+        # status.start()
+
+    # Restart greeter when it completes
+    when greeting_count == 10:
+        print("Greeter completed, restarting...")
+        greeting_count = 0
+        greeter.start()
+
+    # Exit condition
+    when counter >= 100:
+        print("Demo complete!")
+        exit()

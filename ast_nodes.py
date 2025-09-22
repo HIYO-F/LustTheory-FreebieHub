@@ -143,6 +143,22 @@ class StopExpression(Expression):
     block_name: str
 
 @dataclass
+class SaveExpression(Expression):
+    block_name: str
+
+@dataclass
+class SaveStopExpression(Expression):
+    block_name: str
+
+@dataclass
+class StartSaveExpression(Expression):
+    block_name: str
+
+@dataclass
+class DiscardExpression(Expression):
+    block_name: str
+
+@dataclass
 class Identifier(Expression):
     name: str
 
@@ -153,6 +169,10 @@ class NumberLiteral(Expression):
 @dataclass
 class StringLiteral(Expression):
     value: str
+
+@dataclass
+class FStringLiteral(Expression):
+    parts: List[tuple]  # List of ('str', value) or ('expr', expression_string)
 
 @dataclass
 class BooleanLiteral(Expression):

@@ -378,6 +378,9 @@ class Parser:
         elif token.type == TokenType.STRING:
             self.advance()
             return StringLiteral(token.value)
+        elif token.type == TokenType.FSTRING:
+            self.advance()
+            return FStringLiteral(token.value)
         elif token.type == TokenType.TRUE:
             self.advance()
             return BooleanLiteral(True)
@@ -462,12 +465,12 @@ class Parser:
                     self.advance()
 
                     # Check if next token is a keyword that would normally be an identifier
-                    if self.current_token().type in [TokenType.START, TokenType.STOP]:
+                    if self.current_token().type in [TokenType.START, TokenType.STOP, TokenType.SAVE, TokenType.SAVESTOP, TokenType.STARTSAVE, TokenType.DISCARD]:
                         member = self.advance().value
                     else:
                         member = self.expect(TokenType.IDENTIFIER).value
 
-                    # Special handling for .start() and .stop()
+                    # Special handling for block operations
                     if member == "start" and isinstance(expr, Identifier):
                         if self.current_token().type == TokenType.LPAREN:
                             self.advance()
@@ -478,6 +481,26 @@ class Parser:
                             self.advance()
                             self.expect(TokenType.RPAREN)
                         return StopExpression(expr.name)
+                    elif member == "save" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return SaveExpression(expr.name)
+                    elif member == "savestop" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return SaveStopExpression(expr.name)
+                    elif member == "startsave" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return StartSaveExpression(expr.name)
+                    elif member == "discard" and isinstance(expr, Identifier):
+                        if self.current_token().type == TokenType.LPAREN:
+                            self.advance()
+                            self.expect(TokenType.RPAREN)
+                        return DiscardExpression(expr.name)
                     else:
                         # Check if this is a method call
                         if self.current_token().type == TokenType.LPAREN:

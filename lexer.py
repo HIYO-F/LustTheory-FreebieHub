@@ -27,10 +27,15 @@ class TokenType(Enum):
     # Operations
     START = auto()
     STOP = auto()
+    SAVE = auto()
+    SAVESTOP = auto()
+    STARTSAVE = auto()
+    DISCARD = auto()
 
     # Literals
     NUMBER = auto()
     STRING = auto()
+    FSTRING = auto()
     IDENTIFIER = auto()
     TRUE = auto()
     FALSE = auto()
@@ -148,6 +153,56 @@ class Lexer:
         self.advance()  # Skip closing quote
         return Token(TokenType.STRING, string_val, self.line, start_col)
 
+    def read_fstring(self) -> Token:
+        start_col = self.column
+        quote = self.advance()  # Skip opening quote
+        parts = []
+        current_str = ''
+
+        while self.peek() and self.peek() != quote:
+            if self.peek() == '{':
+                # Save any string content before the expression
+                if current_str:
+                    parts.append(('str', current_str))
+                    current_str = ''
+
+                self.advance()  # Skip '{'
+
+                # Read the expression inside {}
+                expr = ''
+                brace_count = 1
+                while self.peek() and brace_count > 0:
+                    char = self.advance()
+                    if char == '{':
+                        brace_count += 1
+                        expr += char
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count > 0:
+                            expr += char
+                    else:
+                        expr += char
+
+                parts.append(('expr', expr.strip()))
+            elif self.peek() == '\\':
+                self.advance()
+                next_char = self.advance()
+                if next_char == 'n':
+                    current_str += '\n'
+                elif next_char == 't':
+                    current_str += '\t'
+                else:
+                    current_str += next_char
+            else:
+                current_str += self.advance()
+
+        # Add any remaining string content
+        if current_str:
+            parts.append(('str', current_str))
+
+        self.advance()  # Skip closing quote
+        return Token(TokenType.FSTRING, parts, self.line, start_col)
+
     def read_identifier(self) -> Token:
         start_col = self.column
         ident = ''
@@ -173,6 +228,10 @@ class Lexer:
             'global': TokenType.GLOBAL,
             'start': TokenType.START,
             'stop': TokenType.STOP,
+            'save': TokenType.SAVE,
+            'savestop': TokenType.SAVESTOP,
+            'startsave': TokenType.STARTSAVE,
+            'discard': TokenType.DISCARD,
             'True': TokenType.TRUE,
             'False': TokenType.FALSE,
             'None': TokenType.NONE,
@@ -230,9 +289,15 @@ class Lexer:
                 self.tokens.append(self.read_number())
                 continue
 
-            # Strings
+            # Strings (including f-strings)
             if char in '"\'':
                 self.tokens.append(self.read_string())
+                continue
+
+            # Check for f-strings
+            if char == 'f' and self.peek(1) and self.peek(1) in '"\'':
+                self.advance()  # Skip 'f'
+                self.tokens.append(self.read_fstring())
                 continue
 
             # Identifiers and keywords

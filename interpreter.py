@@ -5,7 +5,6 @@ import queue
 from typing import Dict, Any, Optional, List
 from ast_nodes import *
 from enum import Enum, auto
-import graphics
 
 class ControlFlow(Exception):
     pass
@@ -40,6 +39,11 @@ class Block:
         self.thread = None
         self.should_stop = threading.Event()
 
+        # Save/restore functionality
+        self.saved_iteration = None
+        self.saved_status = None
+        self.has_saved_state = False
+
     def reset(self):
         self.current_iteration = 0
         self.status = BlockStatus.STOPPED
@@ -48,8 +52,35 @@ class Block:
             self.should_stop.set()
             self.thread.join(timeout=1.0)
 
+    def save_state(self):
+        """Save current execution state"""
+        self.saved_iteration = self.current_iteration
+        self.saved_status = self.status
+        self.has_saved_state = True
+
+    def restore_state(self):
+        """Restore execution state from saved checkpoint"""
+        if self.has_saved_state:
+            self.current_iteration = self.saved_iteration
+            self.status = self.saved_status
+            return True
+        return False
+
+    def clear_saved_state(self):
+        """Clear saved state"""
+        self.saved_iteration = None
+        self.saved_status = None
+        self.has_saved_state = False
+
+    def discard_saved_state(self):
+        """Discard saved state and return whether there was state to discard"""
+        if self.has_saved_state:
+            self.clear_saved_state()
+            return True
+        return False
+
 class Interpreter:
-    def __init__(self):
+    def __init__(self, enable_hot_reload=False, source_file=None):
         self.global_vars: Dict[str, Any] = {}
         self.functions: Dict[str, FuncDeclaration] = {}
         self.blocks: Dict[str, Block] = {}
@@ -58,6 +89,9 @@ class Interpreter:
         self.modules: Dict[str, Any] = {}
         self.global_vars_lock = threading.Lock()
         self.parallel_threads: List[threading.Thread] = []
+        self.hot_reloader = None
+        self.enable_hot_reload = enable_hot_reload
+        self.source_file = source_file
 
     def interpret(self, program: Program):
         # Process declarations
@@ -84,12 +118,21 @@ class Interpreter:
             else:  # Regular FOBlock
                 self.blocks[block.name] = Block(block.name, block.body, None, "fo", False)
 
+        # Setup hot reload if enabled
+        if self.enable_hot_reload and self.source_file:
+            from hot_reload import HotReloader
+            self.hot_reloader = HotReloader(self, self.source_file)
+            self.hot_reloader.start_watching()
+
         # Execute main block
         try:
             self.execute_main(program.main)
         except ExitException:
             print("Program exited")
         finally:
+            # Stop hot reload if active
+            if self.hot_reloader:
+                self.hot_reloader.stop_watching()
             # Clean up parallel threads
             self.cleanup_parallel_threads()
 
@@ -197,6 +240,8 @@ class Interpreter:
             return expr.value
         elif isinstance(expr, StringLiteral):
             return expr.value
+        elif isinstance(expr, FStringLiteral):
+            return self.eval_fstring(expr)
         elif isinstance(expr, BooleanLiteral):
             return expr.value
         elif isinstance(expr, NoneLiteral):
@@ -266,9 +311,35 @@ class Interpreter:
         elif isinstance(expr, StopExpression):
             self.stop_block(expr.block_name)
             return None
+        elif isinstance(expr, SaveExpression):
+            self.save_block(expr.block_name)
+            return None
+        elif isinstance(expr, SaveStopExpression):
+            self.save_stop_block(expr.block_name)
+            return None
+        elif isinstance(expr, StartSaveExpression):
+            self.start_save_block(expr.block_name)
+            return None
+        elif isinstance(expr, DiscardExpression):
+            self.discard_block(expr.block_name)
+            return None
         elif isinstance(expr, MemberAccess):
-            obj = self.eval_expression(expr.object)
-            return getattr(obj, expr.member)
+            # Special handling for block property access
+            if isinstance(expr.object, Identifier) and expr.object.name in self.blocks:
+                block = self.blocks[expr.object.name]
+                if expr.member == "current_iteration":
+                    return block.current_iteration
+                elif expr.member == "status":
+                    return block.status.name
+                elif expr.member == "iterations":
+                    return block.iterations
+                elif expr.member == "has_saved_state":
+                    return block.has_saved_state
+                else:
+                    raise AttributeError(f"Block '{expr.object.name}' has no attribute '{expr.member}'")
+            else:
+                obj = self.eval_expression(expr.object)
+                return getattr(obj, expr.member)
         elif isinstance(expr, MethodCall):
             obj = self.eval_expression(expr.object)
             method = getattr(obj, expr.method)
@@ -283,6 +354,37 @@ class Interpreter:
             return method(*args, **kwargs)
         else:
             raise NotImplementedError(f"Expression type {type(expr)} not implemented")
+
+    def eval_fstring(self, fstring: FStringLiteral) -> str:
+        """Evaluate an f-string by processing its parts"""
+        result = ""
+
+        for part_type, part_value in fstring.parts:
+            if part_type == 'str':
+                result += part_value
+            elif part_type == 'expr':
+                # Parse and evaluate the expression
+                try:
+                    from lexer import Lexer
+                    from parser import Parser
+
+                    # Tokenize the expression
+                    lexer = Lexer(part_value)
+                    tokens = lexer.tokenize()
+
+                    # Parse as expression
+                    parser = Parser(tokens)
+                    expr = parser.parse_expression()
+
+                    # Evaluate and convert to string
+                    value = self.eval_expression(expr)
+                    result += str(value)
+
+                except Exception as e:
+                    # If evaluation fails, include the error in the string
+                    result += f"{{ERROR: {e}}}"
+
+        return result
 
     def apply_binary_op(self, left: Any, op: str, right: Any) -> Any:
         if op == '+':
@@ -551,6 +653,70 @@ class Interpreter:
             if block_name in self.running_blocks:
                 block.status = BlockStatus.STOPPED
                 self.running_blocks.remove(block_name)
+
+    def save_block(self, block_name: str):
+        """Save the current state of a block"""
+        if block_name not in self.blocks:
+            raise NameError(f"Block '{block_name}' not defined")
+        block = self.blocks[block_name]
+        block.save_state()
+        print(f"[SAVE] Block '{block_name}' state saved (iteration: {block.current_iteration})")
+
+    def save_stop_block(self, block_name: str):
+        """Save the current state and stop a block"""
+        if block_name not in self.blocks:
+            raise NameError(f"Block '{block_name}' not defined")
+        block = self.blocks[block_name]
+        block.save_state()
+        print(f"[SAVESTOP] Block '{block_name}' state saved and stopped (iteration: {block.current_iteration})")
+        self.stop_block(block_name)
+
+    def start_save_block(self, block_name: str):
+        """Start a block from its saved state, or from beginning if no saved state"""
+        if block_name not in self.blocks:
+            raise NameError(f"Block '{block_name}' not defined")
+        block = self.blocks[block_name]
+
+        # OS blocks can't use saved state - they always execute immediately once
+        if block.block_type == "os":
+            print(f"[STARTSAVE] OS block '{block_name}' executed (OS blocks don't support saved state)")
+            self.execute_statements(block.body)
+            return
+
+        # Try to restore saved state
+        if block.restore_state():
+            print(f"[STARTSAVE] Block '{block_name}' started from saved state (iteration: {block.current_iteration})")
+        else:
+            print(f"[STARTSAVE] Block '{block_name}' started from beginning (no saved state)")
+            block.reset()
+
+        # Start the block
+        block.status = BlockStatus.RUNNING
+
+        # Handle parallel vs cooperative execution
+        if block.is_parallel:
+            # Start in its own thread
+            block.thread = threading.Thread(
+                target=self.run_parallel_block,
+                args=(block,),
+                daemon=True
+            )
+            block.thread.start()
+        else:
+            # Add to cooperative execution list
+            if block_name not in self.running_blocks:
+                self.running_blocks.append(block_name)
+
+    def discard_block(self, block_name: str):
+        """Discard saved state for a block"""
+        if block_name not in self.blocks:
+            raise NameError(f"Block '{block_name}' not defined")
+        block = self.blocks[block_name]
+
+        if block.discard_saved_state():
+            print(f"[DISCARD] Block '{block_name}' saved state discarded")
+        else:
+            print(f"[DISCARD] ERROR: Discard called for no save! Did you forget to WHEN your block '{block_name}'?")
 
     def handle_import(self, decl: ImportDeclaration):
         try:
