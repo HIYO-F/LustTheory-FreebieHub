@@ -109,6 +109,12 @@ class Assignment(Statement):
     value: 'Expression'
 
 @dataclass
+class IndexAssignment(Statement):
+    object: 'Expression'
+    index: 'Expression'
+    value: 'Expression'
+
+@dataclass
 class Expression(ASTNode):
     pass
 

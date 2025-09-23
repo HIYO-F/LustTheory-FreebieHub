@@ -2,7 +2,7 @@ import time
 import sys
 import threading
 import queue
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from ast_nodes import *
 from enum import Enum, auto
 
@@ -28,10 +28,10 @@ class BlockStatus(Enum):
     COMPLETED = auto()
 
 class Block:
-    def __init__(self, name: str, body: List[Statement], iterations: Optional[int] = None, block_type: str = "fo", is_parallel: bool = False):
+    def __init__(self, name: str, body: List[Statement], iterations: Union[int, tuple, None] = None, block_type: str = "fo", is_parallel: bool = False):
         self.name = name
         self.body = body
-        self.iterations = iterations
+        self.iterations = iterations  # Can be int, ('var', varname), or None
         self.current_iteration = 0
         self.status = BlockStatus.STOPPED
         self.block_type = block_type  # "os", "de", "fo"
@@ -110,11 +110,21 @@ class Interpreter:
             if isinstance(block, OSBlock):
                 self.blocks[block.name] = Block(block.name, block.body, None, "os", False)
             elif isinstance(block, ParallelDEBlock):
-                self.blocks[block.name] = Block(block.name, block.body, block.iterations, "de", True)
+                # Check if iterations is a variable name (stored as string from parser)
+                if isinstance(block.iterations, str):
+                    iterations = ('var', block.iterations)
+                else:
+                    iterations = block.iterations
+                self.blocks[block.name] = Block(block.name, block.body, iterations, "de", True)
             elif isinstance(block, ParallelFOBlock):
                 self.blocks[block.name] = Block(block.name, block.body, None, "fo", True)
             elif isinstance(block, DEBlock):
-                self.blocks[block.name] = Block(block.name, block.body, block.iterations, "de", False)
+                # Check if iterations is a variable name (stored as string from parser)
+                if isinstance(block.iterations, str):
+                    iterations = ('var', block.iterations)
+                else:
+                    iterations = block.iterations
+                self.blocks[block.name] = Block(block.name, block.body, iterations, "de", False)
             else:  # Regular FOBlock
                 self.blocks[block.name] = Block(block.name, block.body, None, "fo", False)
 
@@ -155,12 +165,36 @@ class Interpreter:
             except ExitException:
                 raise
 
+    def resolve_block_iterations(self, block: Block) -> int:
+        """Resolve the iteration count for a DE block"""
+        if block.iterations is None:
+            return None
+        
+        if isinstance(block.iterations, int):
+            return block.iterations
+        
+        if isinstance(block.iterations, tuple) and block.iterations[0] == 'var':
+            var_name = block.iterations[1]
+            if var_name in self.global_vars:
+                value = self.global_vars[var_name]
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    raise ValueError(f"Variable '{var_name}' cannot be converted to iteration count: {value}")
+            else:
+                raise NameError(f"Iteration variable '{var_name}' not defined")
+        
+        return block.iterations
+
     def execute_block_iteration(self, block: Block):
         if block.status != BlockStatus.RUNNING:
             return
 
+        # Resolve iterations if needed
+        iterations = self.resolve_block_iterations(block)
+
         # For DE blocks, check if we've already completed all iterations
-        if block.iterations is not None and block.current_iteration >= block.iterations:
+        if iterations is not None and block.current_iteration >= iterations:
             block.status = BlockStatus.COMPLETED
             if block.name in self.running_blocks:
                 self.running_blocks.remove(block.name)
@@ -171,19 +205,19 @@ class Interpreter:
             self.execute_statements(block.body)
 
             # Increment iteration counter AFTER successful execution
-            if block.iterations is not None:
+            if iterations is not None:
                 block.current_iteration += 1
                 # Check if we've now completed all iterations
-                if block.current_iteration >= block.iterations:
+                if block.current_iteration >= iterations:
                     block.status = BlockStatus.COMPLETED
                     if block.name in self.running_blocks:
                         self.running_blocks.remove(block.name)
 
         except ContinueException:
             # Continue still counts as an iteration
-            if block.iterations is not None:
+            if iterations is not None:
                 block.current_iteration += 1
-                if block.current_iteration >= block.iterations:
+                if block.current_iteration >= iterations:
                     block.status = BlockStatus.COMPLETED
                     if block.name in self.running_blocks:
                         self.running_blocks.remove(block.name)
@@ -205,6 +239,11 @@ class Interpreter:
             with self.global_vars_lock:
                 # Always assign to global scope for now (WHEN uses global scope)
                 self.global_vars[stmt.name] = value
+        elif isinstance(stmt, IndexAssignment):
+            obj = self.eval_expression(stmt.object)
+            index = self.eval_expression(stmt.index)
+            value = self.eval_expression(stmt.value)
+            obj[index] = value
         elif isinstance(stmt, WhenStatement):
             condition_result = self.eval_expression(stmt.condition)
             if condition_result:
@@ -283,11 +322,11 @@ class Interpreter:
                             arg_exprs.append(Identifier(temp_var_name))
                         else:
                             # Regular value - wrap in a literal expression
-                            from ast_nodes import Number, String, BooleanLiteral
+                            from ast_nodes import NumberLiteral, StringLiteral, BooleanLiteral
                             if isinstance(arg, (int, float)):
-                                arg_exprs.append(Number(arg))
+                                arg_exprs.append(NumberLiteral(arg))
                             elif isinstance(arg, str):
-                                arg_exprs.append(String(arg))
+                                arg_exprs.append(StringLiteral(arg))
                             elif isinstance(arg, bool):
                                 arg_exprs.append(BooleanLiteral(arg))
                             else:
@@ -332,7 +371,7 @@ class Interpreter:
                 elif expr.member == "status":
                     return block.status.name
                 elif expr.member == "iterations":
-                    return block.iterations
+                    return self.resolve_block_iterations(block)
                 elif expr.member == "has_saved_state":
                     return block.has_saved_state
                 else:
@@ -395,6 +434,8 @@ class Interpreter:
             return left * right
         elif op == '/':
             return left / right
+        elif op == '//':
+            return int(left // right)
         elif op == '%':
             return left % right
         elif op == '==' or op == 'eq':
@@ -614,6 +655,13 @@ class Interpreter:
 
         # Reset and start the block
         block.reset()
+        
+        # Resolve iterations for DE blocks if they're variable-based
+        if block.block_type == "de":
+            if isinstance(block.iterations, tuple) and block.iterations[0] == 'var':
+                # Don't resolve yet - let it be resolved each time it's needed
+                pass
+        
         block.status = BlockStatus.RUNNING
 
         # Handle parallel vs cooperative execution
@@ -746,8 +794,11 @@ class Interpreter:
             # print(f"[PARALLEL] {block.name} thread started")
 
             if block.block_type == "de":
+                # Resolve iterations at runtime
+                iterations = self.resolve_block_iterations(block)
+                
                 # Declarative block - run exactly N times
-                while (block.current_iteration < block.iterations and
+                while (block.current_iteration < iterations and
                        not block.should_stop.is_set() and
                        not self.exit_requested):
 

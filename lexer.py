@@ -32,6 +32,9 @@ class TokenType(Enum):
     STARTSAVE = auto()
     DISCARD = auto()
 
+    # Additional operators
+    FLOORDIV = auto()  # //
+
     # Literals
     NUMBER = auto()
     STRING = auto()
@@ -313,6 +316,7 @@ class Lexer:
                     '!=': TokenType.NE,
                     '<=': TokenType.LE,
                     '>=': TokenType.GE,
+                    '//': TokenType.FLOORDIV,
                 }
                 if two_char in token_map:
                     col = self.column

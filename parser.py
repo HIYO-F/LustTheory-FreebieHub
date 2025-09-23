@@ -93,32 +93,40 @@ class Parser:
         if self.current_token().type == TokenType.PARALLEL:
             parallel = True
             self.advance()
-
+    
         block_type = self.current_token().type
         self.advance()
-
+    
         name_token = self.expect(TokenType.IDENTIFIER)
         name = name_token.value
-
+    
         # Handle parentheses for all block types (optional for OS/FO, required for DE)
         iterations = None
         if self.current_token().type == TokenType.LPAREN:
             self.advance()
             if block_type == TokenType.DE:
-                iterations_token = self.expect(TokenType.NUMBER)
-                iterations = int(iterations_token.value)
+                # Check if it's a number or identifier
+                if self.current_token().type == TokenType.NUMBER:
+                    iterations = int(self.current_token().value)
+                    self.advance()
+                elif self.current_token().type == TokenType.IDENTIFIER:
+                    # Store variable name as string
+                    iterations = self.current_token().value
+                    self.advance()
+                else:
+                    raise SyntaxError(f"DE block requires iteration count or variable, got {self.current_token().type}")
             self.expect(TokenType.RPAREN)
         elif block_type == TokenType.DE:
             raise SyntaxError(f"DE block '{name}' requires iteration count in parentheses")
-
+    
         self.expect(TokenType.COLON)
         self.skip_newlines()
         self.expect(TokenType.INDENT)
-
+    
         body = self.parse_statements()
-
+    
         self.expect(TokenType.DEDENT)
-
+    
         if block_type == TokenType.OS:
             return OSBlock(name, body)
         elif block_type == TokenType.DE:
@@ -247,11 +255,22 @@ class Parser:
                 names.append(self.expect(TokenType.IDENTIFIER).value)
             return GlobalStatement(names)
         elif token.type == TokenType.IDENTIFIER:
+            # Look ahead to determine if this is assignment or index assignment
             if self.peek_token().type == TokenType.ASSIGN:
+                # Simple assignment: var = value
                 name = self.advance().value
                 self.advance()  # skip =
                 value = self.parse_expression()
                 return Assignment(name, value)
+            elif self.peek_token().type == TokenType.LBRACKET:
+                # Possible index assignment: var[index] = value
+                expr = self.parse_expression()  # This will parse var[index]
+                if isinstance(expr, IndexExpression) and self.current_token().type == TokenType.ASSIGN:
+                    self.advance()  # skip =
+                    value = self.parse_expression()
+                    return IndexAssignment(expr.object, expr.index, value)
+                else:
+                    return ExpressionStatement(expr)
             else:
                 expr = self.parse_expression()
                 return ExpressionStatement(expr)
@@ -331,7 +350,7 @@ class Parser:
     def parse_multiplication(self) -> Expression:
         left = self.parse_unary()
 
-        while self.current_token().type in [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.MODULO]:
+        while self.current_token().type in [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.MODULO, TokenType.FLOORDIV]:
             op = self.advance().value
             right = self.parse_unary()
             left = BinaryOp(left, op, right)
@@ -364,6 +383,77 @@ class Parser:
                 index = self.parse_expression()
                 self.expect(TokenType.RBRACKET)
                 expr = IndexExpression(expr, index)
+            elif self.current_token().type == TokenType.DOT:
+                self.advance()
+
+                # Check if next token is a keyword that would normally be an identifier
+                if self.current_token().type in [TokenType.START, TokenType.STOP, TokenType.SAVE, TokenType.SAVESTOP, TokenType.STARTSAVE, TokenType.DISCARD]:
+                    keyword_token = self.advance()
+                    member = keyword_token.value
+                else:
+                    member_token = self.expect(TokenType.IDENTIFIER)
+                    member = member_token.value
+
+                # Handle special block operations
+                if member == "start" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return StartExpression(expr.name)
+                elif member == "stop" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return StopExpression(expr.name)
+                elif member == "save" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return SaveExpression(expr.name)
+                elif member == "savestop" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return SaveStopExpression(expr.name)
+                elif member == "startsave" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return StartSaveExpression(expr.name)
+                elif member == "discard" and isinstance(expr, Identifier):
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        self.expect(TokenType.RPAREN)
+                    return DiscardExpression(expr.name)
+                else:
+                    # Check if this is a method call
+                    if self.current_token().type == TokenType.LPAREN:
+                        self.advance()
+                        args = []
+                        kwargs = []
+
+                        while self.current_token().type != TokenType.RPAREN:
+                            # Check if this is a keyword argument (identifier=value)
+                            if (self.current_token().type == TokenType.IDENTIFIER and
+                                self.peek_token().type == TokenType.ASSIGN):
+
+                                kw_name = self.advance().value
+                                self.advance()  # consume =
+                                kw_value = self.parse_expression()
+                                kwargs.append(KeywordArg(kw_name, kw_value))
+                            else:
+                                # Regular positional argument
+                                args.append(self.parse_expression())
+
+                            if self.current_token().type == TokenType.COMMA:
+                                self.advance()
+
+                        self.expect(TokenType.RPAREN)
+                        # Create method call with current expression as object
+                        expr = MethodCall(expr, member, args, kwargs if kwargs else None)
+                    else:
+                        # Regular member access
+                        expr = MemberAccess(expr, member)
             else:
                 break
 
