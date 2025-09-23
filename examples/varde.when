@@ -1,0 +1,59 @@
+# Dynamic list iteration demo - FULL VERSION
+from time import sleep
+
+# Dynamic list that changes size
+items = ["apple", "banana", "cherry"]
+item_count = len(items)
+
+# Process all items in the list
+de process_items(item_count):
+    current_item = items[process_items.current_iteration]
+    print(f"Processing: {current_item}")
+    sleep(0.3)
+
+# Render each position in a dynamic snake-like structure  
+snake = [[5, 5], [4, 5], [3, 5]]
+snake_length = len(snake)
+
+de render_snake(snake_length):
+    segment = snake[render_snake.current_iteration]
+    print(f"Drawing segment at [{segment[0]}, {segment[1]}]")
+    sleep(0.2)
+
+phase1_done = False
+phase2_done = False
+phase3_done = False
+phase4_done = False
+
+main:
+    when not phase1_done:
+        print("Processing list with", item_count, "items:")
+        process_items.start()
+        phase1_done = True
+    
+    when phase1_done and not phase2_done and process_items.status == "COMPLETED":
+        # Add more items
+        items.append("date")
+        items.append("elderberry")
+        item_count = len(items)
+        print("\nList grown to", item_count, "items, processing again:")
+        process_items.start()
+        phase2_done = True
+    
+    when phase2_done and not phase3_done and process_items.status == "COMPLETED":
+        print("\nRendering snake with", snake_length, "segments:")
+        render_snake.start()
+        phase3_done = True
+    
+    when phase3_done and not phase4_done and render_snake.status == "COMPLETED":
+        # Snake grows
+        snake.append([2, 5])
+        snake.append([1, 5])
+        snake_length = len(snake)
+        print("\nSnake grew to", snake_length, "segments, rendering again:")
+        render_snake.start()
+        phase4_done = True
+    
+    when phase4_done and render_snake.status == "COMPLETED":
+        print("\nDynamic iteration works! No more manual loop unrolling!")
+        exit()

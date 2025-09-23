@@ -1,0 +1,288 @@
+# WHEN 3D Renderer - True Recursion Stacker
+import tkinter as tk
+from tkinter import Canvas
+from math import cos, sin, pi
+
+# Display config
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 200
+FOV = 60
+
+# Simple map
+game_map = [[1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,1],[1,0,1,1,0,0,0,1],[1,0,1,0,0,0,0,1],[1,0,0,0,0,1,0,1],[1,0,0,0,0,0,0,1],[1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1]]
+
+# Player state
+player_x = 3.5
+player_y = 3.5
+player_angle = 0.0
+
+# Graphics
+window = None
+canvas = None
+initialized = False
+running = True
+
+# Input
+keys_pressed = []
+
+# Rendering state for recursion stacker
+current_col = 0
+recursion_depth = 0
+max_depth = 30  # Switch blocks every 30 columns to reset stack
+
+def make_window():
+    global window, canvas
+    window = tk.Tk()
+    window.title("WHEN 3D")
+    window.geometry(f"{SCREEN_WIDTH}x{SCREEN_HEIGHT}")
+    
+    canvas = Canvas(window, width=SCREEN_WIDTH, height=SCREEN_HEIGHT, bg="black")
+    canvas.pack()
+    
+    window.focus_set()
+    window.bind("<KeyPress>", key_pressed)
+    window.bind("<KeyRelease>", key_released)
+    window.protocol("WM_DELETE_WINDOW", on_close)
+
+def on_close():
+    global running
+    running = False
+    window.destroy()
+
+def key_pressed(event):
+    key = event.keysym.lower()
+    when key not in keys_pressed:
+        keys_pressed.append(key)
+
+def key_released(event):
+    key = event.keysym.lower()
+    when key in keys_pressed:
+        keys_pressed.remove(key)
+
+def process_input():
+    global player_x, player_y, player_angle, running
+    
+    when "left" in keys_pressed:
+        player_angle = player_angle - 0.05
+    when "right" in keys_pressed:
+        player_angle = player_angle + 0.05
+    
+    speed = 0.05
+    when "up" in keys_pressed:
+        dx = cos(player_angle) * speed
+        dy = sin(player_angle) * speed
+        new_x = player_x + dx
+        new_y = player_y + dy
+        
+        when new_x >= 0.5 and new_x < 7.5 and new_y >= 0.5 and new_y < 7.5:
+            map_x = int(new_x)
+            map_y = int(new_y)
+            row = game_map[map_y]
+            when row[map_x] == 0:
+                player_x = new_x
+                player_y = new_y
+    
+    when "down" in keys_pressed:
+        dx = cos(player_angle) * speed
+        dy = sin(player_angle) * speed
+        new_x = player_x - dx
+        new_y = player_y - dy
+        
+        when new_x >= 0.5 and new_x < 7.5 and new_y >= 0.5 and new_y < 7.5:
+            map_x = int(new_x)
+            map_y = int(new_y)
+            row = game_map[map_y]
+            when row[map_x] == 0:
+                player_x = new_x
+                player_y = new_y
+    
+    when "escape" in keys_pressed:
+        running = False
+
+# Simple ray casting
+def cast_ray(angle):
+    dist = 5.0
+    
+    # Check distance 1
+    rx = player_x + cos(angle) * 1.0
+    ry = player_y + sin(angle) * 1.0
+    when rx >= 0 and rx < 8 and ry >= 0 and ry < 8:
+        mx = int(rx)
+        my = int(ry)
+        row = game_map[my]
+        when row[mx] == 1:
+            dist = 1.0
+    
+    # Check distance 2
+    when dist > 2.0:
+        rx = player_x + cos(angle) * 2.0
+        ry = player_y + sin(angle) * 2.0
+        when rx >= 0 and rx < 8 and ry >= 0 and ry < 8:
+            mx = int(rx)
+            my = int(ry)
+            row = game_map[my]
+            when row[mx] == 1:
+                dist = 2.0
+    
+    # Check distance 3
+    when dist > 3.0:
+        rx = player_x + cos(angle) * 3.0
+        ry = player_y + sin(angle) * 3.0
+        when rx >= 0 and rx < 8 and ry >= 0 and ry < 8:
+            mx = int(rx)
+            my = int(ry)
+            row = game_map[my]
+            when row[mx] == 1:
+                dist = 3.0
+    
+    # Check distance 4
+    when dist > 4.0:
+        rx = player_x + cos(angle) * 4.0
+        ry = player_y + sin(angle) * 4.0
+        when rx >= 0 and rx < 8 and ry >= 0 and ry < 8:
+            mx = int(rx)
+            my = int(ry)
+            row = game_map[my]
+            when row[mx] == 1:
+                dist = 4.0
+    
+    return dist
+
+def render_single_column(col):
+    # Calculate ray angle
+    offset = col - SCREEN_WIDTH // 2
+    angle_offset = offset * FOV / SCREEN_WIDTH * pi / 180
+    angle = player_angle + angle_offset
+    
+    # Cast ray
+    dist = cast_ray(angle)
+    
+    # Fix fisheye
+    dist = dist * cos(angle_offset)
+    
+    # Calculate wall height
+    wall_h = 100
+    when dist > 0.5:
+        wall_h = int(100 / dist)
+    when wall_h > SCREEN_HEIGHT:
+        wall_h = SCREEN_HEIGHT
+    when wall_h < 2:
+        wall_h = 2
+    
+    # Calculate positions
+    top = SCREEN_HEIGHT // 2 - wall_h // 2
+    bot = SCREEN_HEIGHT // 2 + wall_h // 2
+    
+    # Choose color
+    color = "#FFFFFF"
+    when dist < 1.5:
+        color = "#CCCCCC"
+    when dist >= 1.5 and dist < 2.5:
+        color = "#999999"
+    when dist >= 2.5 and dist < 3.5:
+        color = "#666666"
+    when dist >= 3.5:
+        color = "#333333"
+    
+    # Draw column
+    when top > 0:
+        canvas.create_line(col, 0, col, top, fill="#202020", width=1)
+    canvas.create_line(col, top, col, bot, fill=color, width=1)
+    when bot < SCREEN_HEIGHT:
+        canvas.create_line(col, bot, col, SCREEN_HEIGHT, fill="#101010", width=1)
+
+# Recursion stacker OS blocks - NO SELF-CALLS
+os render_stack_a():
+    # Process multiple columns without recursion
+    count = 0
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    # After processing batch, call B if more columns remain
+    when current_col < SCREEN_WIDTH:
+        render_stack_b()
+
+os render_stack_b():
+    # Process multiple columns without recursion
+    count = 0
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    when count < max_depth and current_col < SCREEN_WIDTH:
+        render_single_column(current_col)
+        current_col = current_col + 1
+        count = count + 1
+    
+    # After processing batch, call A if more columns remain
+    when current_col < SCREEN_WIDTH:
+        render_stack_a()
+
+# Main game loop
+fo game_loop():
+    when running and initialized:
+        process_input()
+        
+        canvas.delete("all")
+        
+        # Reset and start rendering
+        current_col = 0
+        recursion_depth = 0
+        render_stack_a()
+        
+        # HUD
+        pos_text = f"X:{player_x:.1f} Y:{player_y:.1f}"
+        canvas.create_text(5, 5, text=pos_text, fill="yellow", font=("Arial", 8), anchor="nw")
+        
+        window.update()
+        sleep(0.033)
+
+main:
+    when not initialized:
+        print("WHEN 3D Renderer")
+        print("Arrow keys to move/turn")
+        make_window()
+        initialized = True
+        game_loop.start()
+    
+    when not running:
+        game_loop.stop()
+        exit()

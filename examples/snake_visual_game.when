@@ -1,0 +1,316 @@
+import tkinter as tk
+from tkinter import Canvas
+from random import randint
+
+# Game configuration
+GRID_SIZE = 20
+WINDOW_WIDTH = 600
+WINDOW_HEIGHT = 400
+GRID_WIDTH = WINDOW_WIDTH // GRID_SIZE
+GRID_HEIGHT = WINDOW_HEIGHT // GRID_SIZE
+
+# Game state
+running = True
+initialized = False
+game_over = False
+score = 0
+high_score = 0
+
+# Snake state
+snake = [[15, 10], [14, 10], [13, 10]]
+direction = [1, 0]
+next_direction = [1, 0]
+
+# Food state
+food_x = 20
+food_y = 15
+
+# Input state
+keys_pressed = []
+
+# Graphics
+window = None
+canvas = None
+
+# Timing
+frame_count = 0
+move_counter = 0
+move_every = 8
+
+# Rendering state for recursive OS block
+render_index = 0
+
+# Collision checking state
+collision_index = 0
+collision_found = False
+collision_head_x = 0
+collision_head_y = 0
+
+# Create window
+def make_window():
+    global window, canvas
+    window = tk.Tk()
+    window.title("WHEN SNAKE - UNLIMITED!")
+    window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+    
+    canvas = Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, bg="black")
+    canvas.pack()
+    
+    window.focus_set()
+    window.bind("<KeyPress>", key_pressed)
+    window.bind("<KeyRelease>", key_released)
+    window.protocol("WM_DELETE_WINDOW", on_close)
+
+def on_close():
+    global running
+    running = False
+    window.destroy()
+
+def key_pressed(event):
+    key = event.keysym.lower()
+    when key not in keys_pressed:
+        keys_pressed.append(key)
+
+def key_released(event):
+    key = event.keysym.lower()
+    when key in keys_pressed:
+        keys_pressed.remove(key)
+
+# RECURSIVE OS BLOCK FOR RENDERING SNAKE - NO SIZE LIMIT!
+os render_snake_segment():
+    when render_index < len(snake):
+        segment = snake[render_index]
+        x = segment[0] * GRID_SIZE
+        y = segment[1] * GRID_SIZE
+        
+        when render_index == 0:
+            # Head with eyes
+            canvas.create_rectangle(x, y, x + GRID_SIZE, y + GRID_SIZE, fill="lime", outline="green", width=2)
+            # Draw eyes based on direction
+            eye_size = 4
+            when direction[0] == 1:  # Moving right
+                eye1_x = x + GRID_SIZE - 8
+                eye1_y = y + 4
+                eye2_x = x + GRID_SIZE - 8
+                eye2_y = y + GRID_SIZE - 8
+            when direction[0] == -1:  # Moving left
+                eye1_x = x + 4
+                eye1_y = y + 4
+                eye2_x = x + 4
+                eye2_y = y + GRID_SIZE - 8
+            when direction[1] == 1:  # Moving down
+                eye1_x = x + 4
+                eye1_y = y + GRID_SIZE - 8
+                eye2_x = x + GRID_SIZE - 8
+                eye2_y = y + GRID_SIZE - 8
+            when direction[1] == -1:  # Moving up
+                eye1_x = x + 4
+                eye1_y = y + 4
+                eye2_x = x + GRID_SIZE - 8
+                eye2_y = y + 4
+            canvas.create_oval(eye1_x, eye1_y, eye1_x + eye_size, eye1_y + eye_size, fill="red")
+            canvas.create_oval(eye2_x, eye2_y, eye2_x + eye_size, eye2_y + eye_size, fill="red")
+        when render_index > 0:
+            # Body segments
+            canvas.create_rectangle(x, y, x + GRID_SIZE, y + GRID_SIZE, fill="darkgreen", outline="green")
+        
+        render_index = render_index + 1
+        render_snake_segment()  # RECURSIVE CALL - handles ANY length!
+
+# RECURSIVE OS BLOCK FOR COLLISION CHECKING
+os check_collision():
+    when collision_index < len(snake):
+        segment = snake[collision_index]
+        when segment[0] == collision_head_x and segment[1] == collision_head_y:
+            collision_found = True
+        
+        collision_index = collision_index + 1
+        check_collision()  # RECURSIVE CALL
+
+# Recursive OS block for checking self collision (skips head at index 0)
+os check_self_collision():
+    when collision_index < len(snake):
+        when collision_index > 0:  # Skip the head itself
+            segment = snake[collision_index]
+            when segment[0] == collision_head_x and segment[1] == collision_head_y:
+                collision_found = True
+        
+        collision_index = collision_index + 1
+        check_self_collision()  # RECURSIVE CALL
+
+def process_input():
+    global next_direction, running
+    
+    when "escape" in keys_pressed:
+        running = False
+    
+    when not game_over:
+        when "up" in keys_pressed:
+            when direction[1] != 1:
+                next_direction = [0, -1]
+        when "down" in keys_pressed:
+            when direction[1] != -1:
+                next_direction = [0, 1]
+        when "left" in keys_pressed:
+            when direction[0] != 1:
+                next_direction = [-1, 0]
+        when "right" in keys_pressed:
+            when direction[0] != -1:
+                next_direction = [1, 0]
+    
+    when game_over:
+        when "r" in keys_pressed:
+            restart_game()
+
+def restart_game():
+    global snake, direction, next_direction, food_x, food_y, game_over, score
+    snake = [[15, 10], [14, 10], [13, 10]]
+    direction = [1, 0]
+    next_direction = [1, 0]
+    food_x = randint(0, GRID_WIDTH - 1)
+    food_y = randint(0, GRID_HEIGHT - 1)
+    game_over = False
+    score = 0
+
+def move_snake():
+    global direction, snake, score, game_over, high_score, food_x, food_y
+    global collision_found, collision_index, collision_head_x, collision_head_y
+    
+    when not game_over:
+        direction = next_direction.copy()
+        new_head = [snake[0][0] + direction[0], snake[0][1] + direction[1]]
+        
+        # Check walls with boundary collision
+        wall_hit = False
+        when new_head[0] < 0:
+            wall_hit = True
+        when new_head[0] >= GRID_WIDTH:
+            wall_hit = True
+        when new_head[1] < 0:
+            wall_hit = True
+        when new_head[1] >= GRID_HEIGHT:
+            wall_hit = True
+        
+        when wall_hit:
+            game_over = True
+            when score > high_score:
+                high_score = score
+            return
+        
+        # Check self collision using recursive OS block
+        collision_index = 0
+        collision_found = False
+        collision_head_x = new_head[0]
+        collision_head_y = new_head[1]
+        check_self_collision()
+        
+        when collision_found:
+            game_over = True
+            when score > high_score:
+                high_score = score
+            return
+        
+        snake.insert(0, new_head)
+        
+        # Check food collision with nested when statements (this works!)
+        food_eaten = False
+        when new_head[0] == food_x:
+            when new_head[1] == food_y:
+                food_eaten = True
+                score = score + 10
+                window.title(f"WHEN SNAKE - UNLIMITED! Score: {score}")
+                # Respawn food
+                food_x = randint(0, GRID_WIDTH - 1)
+                food_y = randint(0, GRID_HEIGHT - 1)
+        
+        when not food_eaten:
+            snake.pop()
+
+def draw_frame():
+    global render_index
+    
+    when canvas:
+        canvas.delete("all")
+        
+        # Draw background grid lines for visual appeal
+        grid_color = "#0a0a0a"
+        i = 1
+        when i < GRID_WIDTH:
+            x = i * GRID_SIZE
+            canvas.create_line(x, 0, x, WINDOW_HEIGHT, fill=grid_color)
+            i = i + 1
+        j = 1
+        when j < GRID_HEIGHT:
+            y = j * GRID_SIZE
+            canvas.create_line(0, y, WINDOW_WIDTH, y, fill=grid_color)
+            j = j + 1
+        
+        # Render snake using recursive OS block - NO LIMIT!
+        render_index = 0
+        render_snake_segment()
+        
+        # Draw food with pulsing effect
+        pulse = (frame_count % 20) / 20.0
+        food_size = 2 + pulse * 2
+        fx = food_x * GRID_SIZE + food_size
+        fy = food_y * GRID_SIZE + food_size
+        fx2 = food_x * GRID_SIZE + GRID_SIZE - food_size
+        fy2 = food_y * GRID_SIZE + GRID_SIZE - food_size
+        canvas.create_oval(fx, fy, fx2, fy2, fill="red", outline="darkred", width=2)
+        
+        # Game over overlay
+        when game_over:
+            # Dark overlay
+            canvas.create_rectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, fill="black", stipple="gray50")
+            
+            canvas.create_text(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 - 60, text="GAME OVER!", fill="red", font=("Arial", 36, "bold"))
+            canvas.create_text(WINDOW_WIDTH//2, WINDOW_HEIGHT//2, text=f"Final Score: {score}", fill="white", font=("Arial", 24))
+            canvas.create_text(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 + 35, text=f"Snake Length: {len(snake)}", fill="yellow", font=("Arial", 18))
+            canvas.create_text(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 + 70, text="Press R to restart", fill="gray", font=("Arial", 14))
+        
+        # UI overlay
+        canvas.create_text(60, 20, text=f"Score: {score}", fill="white", font=("Arial", 14, "bold"))
+        canvas.create_text(WINDOW_WIDTH//2, 20, text=f"Length: {len(snake)}", fill="cyan", font=("Arial", 12))
+        canvas.create_text(WINDOW_WIDTH - 80, 20, text=f"High: {high_score}", fill="yellow", font=("Arial", 14, "bold"))
+        
+        # Controls hint at bottom
+        when not game_over:
+            canvas.create_text(WINDOW_WIDTH//2, WINDOW_HEIGHT - 10, text="Arrow Keys: Move | ESC: Quit", fill="gray", font=("Arial", 10))
+
+# Main game loop
+fo game_loop():
+    when running and initialized:
+        process_input()
+        
+        move_counter = move_counter + 1
+        when move_counter >= move_every:
+            move_snake()
+            move_counter = 0
+        
+        draw_frame()
+        window.update()
+        frame_count = frame_count + 1
+        sleep(0.016)  # 60 FPS
+    
+    when not running and initialized:
+        when window:
+            window.destroy()
+        print(f"Game ended! Final score: {score}, Snake length: {len(snake)}")
+
+main:
+    when not initialized:
+        print("=" * 50)
+        print("WHEN SNAKE - UNLIMITED LENGTH!")
+        print("=" * 50)
+        print("Using recursive OS blocks for infinite iteration")
+        print("No manual loop unrolling needed!")
+        print("Snake can grow to ANY length!")
+        print("=" * 50)
+        make_window()
+        initialized = True
+        game_loop.start()
+    
+    when not running:
+        game_loop.stop()
+        print("Thanks for playing WHEN Snake!")
+        exit()

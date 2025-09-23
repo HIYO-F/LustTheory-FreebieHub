@@ -1,0 +1,61 @@
+# Recursive OS block demo
+from time import sleep
+
+# Test data
+items = ["apple", "banana", "cherry", "date", "elderberry"]
+numbers = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+# State for recursion
+current_index = 0
+sum_total = 0
+
+# Recursive OS block for processing items
+os process_item():
+    when current_index < len(items):
+        item = items[current_index]
+        print(f"Processing item {current_index}: {item}")
+        current_index = current_index + 1
+        process_item()  # Call itself recursively
+
+# Recursive OS block for summing numbers
+os sum_number():
+    when current_index < len(numbers):
+        sum_total = sum_total + numbers[current_index]
+        print(f"Adding {numbers[current_index]}, total: {sum_total}")
+        current_index = current_index + 1
+        sum_number()  # Recursive call
+
+phase_1_done = False
+phase_2_done = False
+phase_3_done = False
+
+main:
+    when not phase_1_done:
+        print("=== Recursive OS Block Demo ===")
+        print("\nTest 1: Processing items list")
+        current_index = 0
+        process_item()
+        print(f"Processed {current_index} items!")
+        phase_1_done = True
+    
+    when phase_1_done and not phase_2_done:
+        print("\nTest 2: Summing numbers")
+        current_index = 0
+        sum_total = 0
+        sum_number()
+        print(f"Sum of all numbers: {sum_total}")
+        phase_2_done = True
+    
+    when phase_2_done and not phase_3_done:
+        print("\nTest 3: Growing list")
+        items.append("fig")
+        items.append("grape")
+        current_index = 0
+        process_item()
+        print(f"Processed {current_index} items after growth!")
+        phase_3_done = True
+        
+    when phase_3_done:
+        print("\n=== Demo Complete ===")
+        print("OS blocks can recursively iterate through lists of ANY size!")
+        exit()
