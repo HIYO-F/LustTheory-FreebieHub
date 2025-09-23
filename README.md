@@ -19,8 +19,8 @@ A unique loop-based programming language where everything runs in implicit loops
 ### Option 1: Direct Usage
 ```bash
 # Clone or download the WHEN interpreter
-git clone <repository>
-cd whenloop
+git clone https://github.com/PhialsBasement/WHEN-Language.git
+cd WHEN-Language
 
 # Run WHEN programs
 python when.py program.when
@@ -29,7 +29,8 @@ python when.py program.when
 ### Option 2: Install as Command
 ```bash
 # Install globally with pip
-pip install -e .
+pip install -e . 
+pip install when-lang
 
 # Now use the 'when' command
 when program.when
