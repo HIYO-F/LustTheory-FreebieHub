@@ -6,6 +6,7 @@ class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
         self.pos = 0
+        self.paren_depth = 0  # Track parenthesis nesting
 
     def current_token(self) -> Token:
         if self.pos < len(self.tokens):
@@ -222,7 +223,6 @@ class Parser:
 
     def parse_statement(self) -> Optional[Statement]:
         token = self.current_token()
-
         if token.type == TokenType.WHEN:
             return self.parse_when_statement()
         elif token.type == TokenType.BREAK:
@@ -311,11 +311,21 @@ class Parser:
         # Parse the main expression (which could be the true_expr in ternary)
         expr = self.parse_comparison()
 
+        # Only skip newlines if we're inside parentheses
+        if self.paren_depth > 0:
+            self.skip_newlines()
+
         # Check for ternary operator: expr when condition else false_expr
         if self.current_token().type == TokenType.WHEN:
             self.advance()  # consume 'when'
+            self.skip_newlines()  # Allow newlines after 'when'
+
             condition = self.parse_comparison()
+            self.skip_newlines()  # Allow newlines before 'else'
+
             self.expect(TokenType.ELSE)
+            self.skip_newlines()  # Allow newlines after 'else'
+
             false_expr = self.parse_ternary()  # Allow nested ternaries
             return TernaryOp(expr, condition, false_expr)
 
@@ -512,14 +522,18 @@ class Parser:
         elif token.type == TokenType.LPAREN:
             # Check if this is a tuple or just a parenthesized expression
             self.advance()
+            self.paren_depth += 1  # Entering parentheses
+            self.skip_newlines()  # Allow newlines after opening paren
 
             # Empty tuple case
             if self.current_token().type == TokenType.RPAREN:
                 self.advance()
+                self.paren_depth -= 1  # Exiting parentheses
                 return TupleLiteral([])
 
             # Parse first element
             first_expr = self.parse_expression()
+            self.skip_newlines()  # Allow newlines after expression
 
             # If we see a comma, it's definitely a tuple
             if self.current_token().type == TokenType.COMMA:
@@ -535,16 +549,19 @@ class Parser:
                         break
 
                 self.expect(TokenType.RPAREN)
+                self.paren_depth -= 1  # Exiting parentheses
                 return TupleLiteral(elements)
             else:
                 # Single element in parentheses - check for trailing comma to disambiguate
                 if self.current_token().type == TokenType.COMMA:
                     self.advance()  # consume trailing comma
                     self.expect(TokenType.RPAREN)
+                    self.paren_depth -= 1  # Exiting parentheses
                     return TupleLiteral([first_expr])
                 else:
                     # Just a parenthesized expression
                     self.expect(TokenType.RPAREN)
+                    self.paren_depth -= 1  # Exiting parentheses
                     return first_expr
         elif token.type == TokenType.IDENTIFIER:
             name = self.advance().value
