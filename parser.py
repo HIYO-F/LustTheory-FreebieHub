@@ -8,6 +8,16 @@ class Parser:
         self.pos = 0
         self.paren_depth = 0  # Track parenthesis nesting
 
+    def parse_dotted_name(self) -> str:
+        name = self.expect(TokenType.IDENTIFIER).value
+        while self.current_token().type == TokenType.DOT:
+            self.advance()
+            part = self.expect(TokenType.IDENTIFIER).value
+            name += '.' + part
+        return name
+
+
+
     def current_token(self) -> Token:
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
@@ -170,7 +180,11 @@ class Parser:
 
     def parse_import(self) -> ImportDeclaration:
         self.expect(TokenType.IMPORT)
-        module = self.expect(TokenType.IDENTIFIER).value
+        #module = self.expect(TokenType.IDENTIFIER).value  
+
+        module = self.parse_dotted_name()
+
+
 
         alias = None
         if self.current_token().type == TokenType.AS:
@@ -182,7 +196,8 @@ class Parser:
 
     def parse_from_import(self) -> FromImportDeclaration:
         self.expect(TokenType.FROM)
-        module = self.expect(TokenType.IDENTIFIER).value
+        #module = self.expect(TokenType.IDENTIFIER).value
+        module = self.parse_dotted_name()
         self.expect(TokenType.IMPORT)
 
         names = []
