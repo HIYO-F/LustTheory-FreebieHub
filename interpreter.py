@@ -244,6 +244,11 @@ class Interpreter:
             index = self.eval_expression(stmt.index)
             value = self.eval_expression(stmt.value)
             obj[index] = value
+        elif isinstance(stmt, AttributeAssignment):
+            obj = self.eval_expression(stmt.object)
+            value = self.eval_expression(stmt.value)
+            # Set the attribute on the object
+            setattr(obj, stmt.attribute, value)
         elif isinstance(stmt, WhenStatement):
             condition_result = self.eval_expression(stmt.condition)
             if condition_result:
@@ -289,6 +294,9 @@ class Interpreter:
             return [self.eval_expression(elem) for elem in expr.elements]
         elif isinstance(expr, TupleLiteral):
             return tuple(self.eval_expression(elem) for elem in expr.elements)
+        elif isinstance(expr, DictLiteral):
+            return {self.eval_expression(k): self.eval_expression(v)
+                    for k, v in zip(expr.keys, expr.values)}
         elif isinstance(expr, IndexExpression):
             obj = self.eval_expression(expr.object)
             index = self.eval_expression(expr.index)
@@ -301,6 +309,12 @@ class Interpreter:
                 return not operand
             else:
                 raise NotImplementedError(f"Unary operator {expr.operator} not implemented")
+        elif isinstance(expr, TernaryOp):
+            condition = self.eval_expression(expr.condition)
+            if condition:
+                return self.eval_expression(expr.true_expr)
+            else:
+                return self.eval_expression(expr.false_expr)
         elif isinstance(expr, Identifier):
             with self.global_vars_lock:
                 if expr.name in self.global_vars:
@@ -480,6 +494,8 @@ class Interpreter:
             return str(self.eval_expression(args[0]))
         elif name == 'len':
             return len(self.eval_expression(args[0]))
+        elif name == 'abs':
+            return abs(self.eval_expression(args[0]))
         elif name == 'rjust':
             if len(args) >= 2:
                 string = str(self.eval_expression(args[0]))

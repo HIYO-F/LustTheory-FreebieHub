@@ -255,25 +255,36 @@ class Parser:
                 names.append(self.expect(TokenType.IDENTIFIER).value)
             return GlobalStatement(names)
         elif token.type == TokenType.IDENTIFIER:
-            # Look ahead to determine if this is assignment or index assignment
+            # Parse the left side as an expression first
+            # Check for simple assignment shortcut
             if self.peek_token().type == TokenType.ASSIGN:
                 # Simple assignment: var = value
                 name = self.advance().value
                 self.advance()  # skip =
                 value = self.parse_expression()
                 return Assignment(name, value)
-            elif self.peek_token().type == TokenType.LBRACKET:
-                # Possible index assignment: var[index] = value
-                expr = self.parse_expression()  # This will parse var[index]
-                if isinstance(expr, IndexExpression) and self.current_token().type == TokenType.ASSIGN:
+            else:
+                # Parse as expression and check if it's an assignment target
+                expr = self.parse_expression()
+
+                # Check if this expression is followed by an assignment
+                if self.current_token().type == TokenType.ASSIGN:
                     self.advance()  # skip =
                     value = self.parse_expression()
-                    return IndexAssignment(expr.object, expr.index, value)
+
+                    # Determine what kind of assignment this is
+                    if isinstance(expr, MemberAccess):
+                        # obj.attr = value
+                        return AttributeAssignment(expr.object, expr.member, value)
+                    elif isinstance(expr, IndexExpression):
+                        # obj[index] = value  or  obj.attr[index] = value
+                        return IndexAssignment(expr.object, expr.index, value)
+                    else:
+                        # This shouldn't happen with valid syntax
+                        raise SyntaxError(f"Invalid assignment target at line {self.current_token().line}")
                 else:
+                    # Just an expression statement
                     return ExpressionStatement(expr)
-            else:
-                expr = self.parse_expression()
-                return ExpressionStatement(expr)
         else:
             expr = self.parse_expression()
             if expr:
@@ -294,7 +305,21 @@ class Parser:
         return WhenStatement(condition, body)
 
     def parse_expression(self) -> Expression:
-        return self.parse_comparison()
+        return self.parse_ternary()
+
+    def parse_ternary(self) -> Expression:
+        # Parse the main expression (which could be the true_expr in ternary)
+        expr = self.parse_comparison()
+
+        # Check for ternary operator: expr when condition else false_expr
+        if self.current_token().type == TokenType.WHEN:
+            self.advance()  # consume 'when'
+            condition = self.parse_comparison()
+            self.expect(TokenType.ELSE)
+            false_expr = self.parse_ternary()  # Allow nested ternaries
+            return TernaryOp(expr, condition, false_expr)
+
+        return expr
 
     def parse_comparison(self) -> Expression:
         left = self.parse_logical_and()
@@ -482,6 +507,8 @@ class Parser:
             return NoneLiteral()
         elif token.type == TokenType.LBRACKET:
             return self.parse_list()
+        elif token.type == TokenType.LBRACE:
+            return self.parse_dict()
         elif token.type == TokenType.LPAREN:
             # Check if this is a tuple or just a parenthesized expression
             self.advance()
@@ -630,13 +657,65 @@ class Parser:
         self.expect(TokenType.LBRACKET)
         elements = []
 
+        # Skip any newlines after opening bracket
+        self.skip_newlines()
+
         if self.current_token().type != TokenType.RBRACKET:
             elements.append(self.parse_expression())
-            while self.current_token().type == TokenType.COMMA:
-                self.advance()
+
+            while True:
+                self.skip_newlines()
+                if self.current_token().type != TokenType.COMMA:
+                    break
+                self.advance()  # consume comma
+                self.skip_newlines()
+
                 if self.current_token().type == TokenType.RBRACKET:
                     break  # trailing comma
+
                 elements.append(self.parse_expression())
 
+        self.skip_newlines()
         self.expect(TokenType.RBRACKET)
         return ListLiteral(elements)
+
+    def parse_dict(self) -> DictLiteral:
+        self.expect(TokenType.LBRACE)
+        keys = []
+        values = []
+
+        # Skip any newlines after opening brace
+        self.skip_newlines()
+
+        if self.current_token().type != TokenType.RBRACE:
+            # Parse first key-value pair
+            key = self.parse_expression()
+            self.skip_newlines()
+            self.expect(TokenType.COLON)
+            self.skip_newlines()
+            value = self.parse_expression()
+            keys.append(key)
+            values.append(value)
+
+            # Parse remaining key-value pairs
+            while True:
+                self.skip_newlines()
+                if self.current_token().type != TokenType.COMMA:
+                    break
+                self.advance()  # consume comma
+                self.skip_newlines()
+
+                if self.current_token().type == TokenType.RBRACE:
+                    break  # trailing comma
+
+                key = self.parse_expression()
+                self.skip_newlines()
+                self.expect(TokenType.COLON)
+                self.skip_newlines()
+                value = self.parse_expression()
+                keys.append(key)
+                values.append(value)
+
+        self.skip_newlines()
+        self.expect(TokenType.RBRACE)
+        return DictLiteral(keys, values)

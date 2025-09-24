@@ -17,6 +17,7 @@ class TokenType(Enum):
     AS = auto()
 
     # Control flow
+    ELSE = auto()
     BREAK = auto()
     CONTINUE = auto()
     EXIT = auto()
@@ -69,6 +70,8 @@ class TokenType(Enum):
     RPAREN = auto()
     LBRACKET = auto()
     RBRACKET = auto()
+    LBRACE = auto()
+    RBRACE = auto()
     COMMA = auto()
 
     # Special
@@ -92,6 +95,9 @@ class Lexer:
         self.column = 1
         self.tokens: List[Token] = []
         self.indent_stack = [0]
+        self.brace_depth = 0  # Track nesting level of braces
+        self.bracket_depth = 0  # Track nesting level of brackets
+        self.paren_depth = 0  # Track nesting level of parentheses
 
     def peek(self, offset=0) -> Optional[str]:
         pos = self.pos + offset
@@ -119,6 +125,19 @@ class Lexer:
         if self.peek() == '#':
             while self.peek() and self.peek() != '\n':
                 self.advance()
+
+    def skip_block_comment(self):
+        if self.peek() == '/' and self.peek(1) == '*':
+            self.advance()  # Skip '/'
+            self.advance()  # Skip '*'
+            while self.peek():
+                if self.peek() == '*' and self.peek(1) == '/':
+                    self.advance()  # Skip '*'
+                    self.advance()  # Skip '/'
+                    return True
+                self.advance()
+            return False  # Unclosed block comment
+        return False
 
     def read_number(self) -> Token:
         start_col = self.column
@@ -224,6 +243,7 @@ class Lexer:
             'import': TokenType.IMPORT,
             'from': TokenType.FROM,
             'as': TokenType.AS,
+            'else': TokenType.ELSE,
             'break': TokenType.BREAK,
             'continue': TokenType.CONTINUE,
             'pass': TokenType.PASS,
@@ -248,6 +268,13 @@ class Lexer:
         return Token(token_type, ident, self.line, start_col)
 
     def handle_indentation(self):
+        # Skip indentation handling if we're inside braces, brackets, or parentheses
+        if self.brace_depth > 0 or self.bracket_depth > 0 or self.paren_depth > 0:
+            # Just consume spaces without generating indent/dedent tokens
+            while self.peek() and self.peek() == ' ':
+                self.advance()
+            return
+
         if self.column == 1:
             indent_level = 0
             while self.peek() and self.peek() == ' ':
@@ -272,8 +299,15 @@ class Lexer:
 
             self.skip_whitespace()
 
+            # Skip single-line comments
             if self.peek() == '#':
                 self.skip_comment()
+                continue
+
+            # Skip block comments
+            if self.peek() == '/' and self.peek(1) == '*':
+                if not self.skip_block_comment():
+                    raise SyntaxError(f"Unclosed block comment starting at line {self.line}, column {self.column}")
                 continue
 
             if not self.peek():
@@ -292,15 +326,15 @@ class Lexer:
                 self.tokens.append(self.read_number())
                 continue
 
-            # Strings (including f-strings)
-            if char in '"\'':
-                self.tokens.append(self.read_string())
-                continue
-
-            # Check for f-strings
+            # Check for f-strings (must come before regular strings)
             if char == 'f' and self.peek(1) and self.peek(1) in '"\'':
                 self.advance()  # Skip 'f'
                 self.tokens.append(self.read_fstring())
+                continue
+
+            # Strings
+            if char in '"\'':
+                self.tokens.append(self.read_string())
                 continue
 
             # Identifiers and keywords
@@ -332,6 +366,8 @@ class Lexer:
                 ')': TokenType.RPAREN,
                 '[': TokenType.LBRACKET,
                 ']': TokenType.RBRACKET,
+                '{': TokenType.LBRACE,
+                '}': TokenType.RBRACE,
                 ',': TokenType.COMMA,
                 '=': TokenType.ASSIGN,
                 '+': TokenType.PLUS,
@@ -346,7 +382,23 @@ class Lexer:
 
             if char in single_char_tokens:
                 col = self.column
-                self.tokens.append(Token(single_char_tokens[char], char, self.line, col))
+                token_type = single_char_tokens[char]
+
+                # Track nesting depth for proper indentation handling
+                if token_type == TokenType.LBRACE:
+                    self.brace_depth += 1
+                elif token_type == TokenType.RBRACE:
+                    self.brace_depth -= 1
+                elif token_type == TokenType.LBRACKET:
+                    self.bracket_depth += 1
+                elif token_type == TokenType.RBRACKET:
+                    self.bracket_depth -= 1
+                elif token_type == TokenType.LPAREN:
+                    self.paren_depth += 1
+                elif token_type == TokenType.RPAREN:
+                    self.paren_depth -= 1
+
+                self.tokens.append(Token(token_type, char, self.line, col))
                 self.advance()
                 continue
 

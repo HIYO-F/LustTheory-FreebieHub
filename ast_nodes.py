@@ -115,6 +115,12 @@ class IndexAssignment(Statement):
     value: 'Expression'
 
 @dataclass
+class AttributeAssignment(Statement):
+    object: 'Expression'
+    attribute: str
+    value: 'Expression'
+
+@dataclass
 class Expression(ASTNode):
     pass
 
@@ -128,6 +134,12 @@ class BinaryOp(Expression):
 class UnaryOp(Expression):
     operator: str
     operand: Expression
+
+@dataclass
+class TernaryOp(Expression):
+    true_expr: Expression
+    condition: Expression
+    false_expr: Expression
 
 @dataclass
 class CallExpression(Expression):
@@ -195,6 +207,11 @@ class ListLiteral(Expression):
 @dataclass
 class TupleLiteral(Expression):
     elements: List[Expression]
+
+@dataclass
+class DictLiteral(Expression):
+    keys: List[Expression]
+    values: List[Expression]
 
 @dataclass
 class IndexExpression(Expression):
