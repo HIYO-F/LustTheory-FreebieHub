@@ -1,0 +1,89 @@
+/*
+ * Block Comments Demonstration
+ * =============================
+ * This example shows how to use C-style block comments in WHEN language.
+ * Block comments can span multiple lines and are useful for:
+ * - File headers and documentation
+ * - Temporarily disabling code blocks
+ * - Inline explanations
+ */
+
+# You can mix regular comments with block comments
+# Regular comments are still supported with #
+
+main:
+    print("=== Block Comments Demo ===\n")
+
+    /* Basic single-line block comment */
+    print("1. Single-line block comments work")
+
+    /*
+     * Multi-line block comment
+     * Can span multiple lines
+     * Great for detailed explanations
+     */
+    print("2. Multi-line block comments work")
+
+    # Inline comments after code
+    x = 10  /* This sets x to 10 */
+    y = 20  /* This sets y to 20 */
+    result = x + y  /* Calculate sum */
+    print(f"3. Inline comments: {x} + {y} = {result}")
+
+    /*
+     * You can use block comments to temporarily disable code:
+     * print("This line won't execute")
+     * x = 100
+     * print("Neither will this")
+     */
+
+    print("4. Block comments can disable code blocks")
+
+    /* Block comments are perfect for TODO notes
+       TODO: Add more features here
+       FIXME: Optimize this section
+       NOTE: This is important */
+
+    print("5. Block comments for TODO/FIXME/NOTE markers")
+
+    /*
+     * ASCII art in comments!
+     *     ___
+     *    /   \
+     *   | o o |
+     *   |  >  |
+     *    \___/
+     */
+    print("6. ASCII art in block comments!")
+
+    /* Mathematical explanations
+     * The formula for calculating compound interest:
+     * A = P(1 + r/n)^(nt)
+     * Where:
+     * A = final amount
+     * P = principal
+     * r = annual interest rate
+     * n = times interest applied per period
+     * t = number of periods
+     */
+
+    # Calculate compound interest example
+    P = 1000  /* principal amount */
+    r = 0.05  /* 5% annual rate */
+    n = 12    /* monthly compounding */
+    t = 2     /* 2 years */
+
+    # Calculate compound interest (simplified)
+    # Using simple interest as an approximation
+    # since WHEN doesn't have power operator yet
+    simple_interest = P * r * t
+    A = P + simple_interest
+    print(f"\n7. Simple Interest Calculation:")
+    print(f"   Principal: ${P}")
+    rate_percent = r * 100
+    print(f"   Rate: {rate_percent}%")
+    print(f"   Time: {t} years")
+    print(f"   Final Amount: ${A}")
+
+    print("\n=== Demo Complete ===")
+    exit()

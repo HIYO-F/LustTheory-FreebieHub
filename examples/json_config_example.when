@@ -1,0 +1,296 @@
+/*
+ * JSON Configuration Example
+ * ==========================
+ * This example demonstrates using both block comments and dict literals
+ * to create a JSON-like configuration system in WHEN language.
+ *
+ * Features demonstrated:
+ * - Block comments for documentation
+ * - Dict literals for JSON-like data structures
+ * - Nested configurations
+ * - Dynamic config updates
+ */
+
+main:
+    print("=== JSON Configuration System Demo ===\n")
+
+    /* ==========================================
+     * Application Configuration
+     * This would typically be loaded from a file
+     * ========================================== */
+
+    app_config = {
+        "app": {
+            "name": "MyAwesomeApp",
+            "version": "2.1.0",
+            "environment": "development"  /* Can be: development, staging, production */
+        },
+
+        /* Database configuration section */
+        "database": {
+            "primary": {
+                "engine": "postgresql",
+                "host": "localhost",
+                "port": 5432,
+                "name": "myapp_dev",
+                "pool": {
+                    "min_connections": 5,
+                    "max_connections": 20,
+                    "timeout": 30  /* seconds */
+                }
+            },
+            "cache": {
+                "engine": "redis",
+                "host": "localhost",
+                "port": 6379,
+                "ttl": 3600  /* Time to live in seconds */
+            }
+        },
+
+        /* API configuration */
+        "api": {
+            "base_url": "https://api.example.com",
+            "version": "v2",
+            "endpoints": {
+                "auth": "/auth/login",
+                "users": "/users",
+                "posts": "/posts",
+                "comments": "/comments"
+            },
+            "rate_limiting": {
+                "enabled": True,
+                "requests_per_minute": 60,
+                "burst_size": 10
+            },
+            "timeout": 5000  /* milliseconds */
+        },
+
+        /* Security settings */
+        "security": {
+            "cors": {
+                "enabled": True,
+                "allowed_origins": ["http://localhost:3000", "https://example.com"],
+                "allowed_methods": ["GET", "POST", "PUT", "DELETE"],
+                "max_age": 86400  /* 24 hours in seconds */
+            },
+            "encryption": {
+                "algorithm": "AES-256",
+                "key_rotation_days": 30
+            },
+            "session": {
+                "secret_key": "super-secret-key-change-in-production",
+                "expire_minutes": 60,
+                "refresh_enabled": True
+            }
+        },
+
+        /* Logging configuration */
+        "logging": {
+            "level": "DEBUG",  /* DEBUG, INFO, WARNING, ERROR, CRITICAL */
+            "format": "json",
+            "outputs": [
+                {
+                    "type": "console",
+                    "enabled": True,
+                    "color": True
+                },
+                {
+                    "type": "file",
+                    "enabled": True,
+                    "path": "/var/log/myapp/app.log",
+                    "rotation": {
+                        "enabled": True,
+                        "max_size_mb": 100,
+                        "backup_count": 5
+                    }
+                }
+            ]
+        },
+
+        /* Feature flags */
+        "features": {
+            "new_ui": False,
+            "beta_features": True,
+            "analytics": True,
+            "maintenance_mode": False,
+            "experimental": {
+                "ai_suggestions": True,
+                "auto_scaling": False,
+                "dark_mode": True
+            }
+        },
+
+        /* Notification settings */
+        "notifications": {
+            "email": {
+                "enabled": True,
+                "smtp": {
+                    "host": "smtp.gmail.com",
+                    "port": 587,
+                    "use_tls": True
+                },
+                "from_address": "noreply@example.com",
+                "templates": {
+                    "welcome": "templates/welcome.html",
+                    "reset_password": "templates/reset.html",
+                    "notification": "templates/notification.html"
+                }
+            },
+            "push": {
+                "enabled": False,
+                "provider": "firebase",
+                "api_key": "your-api-key-here"
+            },
+            "webhooks": {
+                "enabled": True,
+                "endpoints": [
+                    {"url": "https://hooks.slack.com/services/XXX", "events": ["error", "warning"]},
+                    {"url": "https://discord.com/api/webhooks/YYY", "events": ["info"]}
+                ]
+            }
+        }
+    }
+
+    /* ==========================================
+     * Display Configuration Information
+     * ========================================== */
+
+    print("Application Configuration Loaded!")
+    print("-" * 40)
+
+    /* Basic app info */
+    print(f"App: {app_config['app']['name']} v{app_config['app']['version']}")
+    print(f"Environment: {app_config['app']['environment']}")
+    print()
+
+    /* Database info */
+    print("Database Configuration:")
+    print(f"  Primary: {app_config['database']['primary']['engine']}")
+    print(f"  Host: {app_config['database']['primary']['host']}:{app_config['database']['primary']['port']}")
+    print(f"  Pool: {app_config['database']['primary']['pool']['min_connections']}-{app_config['database']['primary']['pool']['max_connections']} connections")
+    print(f"  Cache: {app_config['database']['cache']['engine']} (TTL: {app_config['database']['cache']['ttl']}s)")
+    print()
+
+    /* API configuration */
+    print("API Configuration:")
+    print(f"  Base URL: {app_config['api']['base_url']}/{app_config['api']['version']}")
+    print(f"  Rate Limiting: {app_config['api']['rate_limiting']['requests_per_minute']} req/min")
+    print(f"  Timeout: {app_config['api']['timeout']}ms")
+    print()
+
+    /* Security settings */
+    print("Security Settings:")
+    print(f"  CORS: {'Enabled' if app_config['security']['cors']['enabled'] else 'Disabled'}")
+    print(f"  Encryption: {app_config['security']['encryption']['algorithm']}")
+    print(f"  Session Timeout: {app_config['security']['session']['expire_minutes']} minutes")
+    print()
+
+    /* Logging configuration */
+    print("Logging Configuration:")
+    print(f"  Level: {app_config['logging']['level']}")
+    print(f"  Format: {app_config['logging']['format']}")
+
+    /* Count enabled outputs */
+    enabled_outputs = 0
+    when app_config['logging']['outputs'][0]['enabled']:
+        enabled_outputs = enabled_outputs + 1
+    when app_config['logging']['outputs'][1]['enabled']:
+        enabled_outputs = enabled_outputs + 1
+
+    print(f"  Outputs: {enabled_outputs} enabled")
+    print()
+
+    /* Feature flags */
+    print("Feature Flags:")
+    print(f"  New UI: {'YES' if app_config['features']['new_ui'] else 'NO'}")
+    print(f"  Beta Features: {'YES' if app_config['features']['beta_features'] else 'NO'}")
+    print(f"  Analytics: {'YES' if app_config['features']['analytics'] else 'NO'}")
+    print(f"  Dark Mode: {'YES' if app_config['features']['experimental']['dark_mode'] else 'NO'}")
+    print()
+
+    /* ==========================================
+     * Simulate Configuration Updates
+     * ========================================== */
+
+    print("Simulating Configuration Updates...")
+    print("-" * 40)
+
+    /* Update environment to production */
+    print("Switching to production environment...")
+    app_config["app"]["environment"] = "production"
+    app_config["logging"]["level"] = "WARNING"  /* Less verbose in production */
+    app_config["features"]["beta_features"] = False  /* Disable beta in production */
+
+    print(f"  Environment: {app_config['app']['environment']}")
+    print(f"  Log Level: {app_config['logging']['level']}")
+    print(f"  Beta Features: {'Enabled' if app_config['features']['beta_features'] else 'Disabled'}")
+    print()
+
+    /* ==========================================
+     * Create a User Settings Dictionary
+     * ========================================== */
+
+    print("User Preferences:")
+    print("-" * 40)
+
+    user_prefs = {
+        "user_id": 12345,
+        "username": "john_doe",
+        "preferences": {
+            "theme": "dark",  /* User prefers dark mode */
+            "language": "en-US",
+            "timezone": "America/New_York",
+            "notifications": {
+                "email": True,
+                "push": False,
+                "frequency": "daily"  /* instant, daily, weekly */
+            },
+            "privacy": {
+                "profile_visible": True,
+                "show_online_status": False,
+                "allow_messages": "friends"  /* all, friends, none */
+            }
+        },
+        "subscription": {
+            "plan": "premium",
+            "billing_cycle": "monthly",
+            "auto_renew": True,
+            "expires": "2024-12-31"
+        }
+    }
+
+    print(f"  User: {user_prefs['username']} (ID: {user_prefs['user_id']})")
+    print(f"  Theme: {user_prefs['preferences']['theme']}")
+    print(f"  Language: {user_prefs['preferences']['language']}")
+    print(f"  Subscription: {user_prefs['subscription']['plan']} ({user_prefs['subscription']['billing_cycle']})")
+
+    /* ==========================================
+     * Configuration Validation Example
+     * ========================================== */
+
+    print("\nConfiguration Validation:")
+    print("-" * 40)
+
+    validation_errors = []
+
+    /* Check database connection settings */
+    when app_config["database"]["primary"]["port"] < 1 or app_config["database"]["primary"]["port"] > 65535:
+        validation_errors = ["Invalid database port number"]
+
+    /* Check rate limiting */
+    when app_config["api"]["rate_limiting"]["requests_per_minute"] < 1:
+        validation_errors = ["Rate limiting value too low"]
+
+    /* Check session timeout */
+    when app_config["security"]["session"]["expire_minutes"] < 5:
+        validation_errors = ["Session timeout too short (minimum 5 minutes)"]
+
+    when len(validation_errors) == 0:
+        print("[OK] Configuration is valid!")
+
+    when len(validation_errors) > 0:
+        print("[ERROR] Configuration errors found:")
+        print(f"  - {validation_errors[0]}")
+
+    print("\n=== Configuration Demo Complete ===")
+    exit()

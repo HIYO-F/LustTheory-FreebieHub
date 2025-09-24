@@ -1,0 +1,138 @@
+# Dictionary Literals Demonstration
+# ==================================
+# This example showcases the new dict literal syntax using { and }
+# for JSON-like data handling in WHEN language
+
+main:
+    print("=== Dictionary Literals Demo ===\n")
+
+    # 1. Basic Dictionary Creation
+    print("1. Basic Dictionary:")
+    person = {"name": "John Doe", "age": 30, "email": "john@example.com"}
+    print("   Person:", person)
+    print("   Name:", person["name"])
+    print("   Age:", person["age"])
+    print("   Email:", person["email"])
+
+    # 2. Empty Dictionary
+    print("\n2. Empty Dictionary:")
+    empty_dict = {}
+    print("   Empty dict:", empty_dict)
+    empty_dict["first_key"] = "first_value"
+    print("   After adding:", empty_dict)
+
+    # 3. Different Key Types
+    print("\n3. Different Key Types:")
+    mixed_keys = {
+        "string_key": "text value",
+        42: "integer key",
+        3.14: "float key",
+        True: "boolean key"
+    }
+    print("   Mixed keys dict:", mixed_keys)
+    print("   Value for 42:", mixed_keys[42])
+    print("   Value for True:", mixed_keys[True])
+
+    # 4. Nested Dictionaries (JSON-like structure)
+    print("\n4. Nested Dictionary (JSON-like):")
+    company = {
+        "name": "Tech Corp",
+        "founded": 2020,
+        "employees": [
+            {"id": 1, "name": "Alice", "role": "Developer"},
+            {"id": 2, "name": "Bob", "role": "Designer"},
+            {"id": 3, "name": "Charlie", "role": "Manager"}
+        ],
+        "locations": {
+            "headquarters": {"city": "San Francisco", "country": "USA"},
+            "branch1": {"city": "London", "country": "UK"},
+            "branch2": {"city": "Tokyo", "country": "Japan"}
+        }
+    }
+    print("   Company:", company["name"])
+    print("   Founded:", company["founded"])
+    print("   Employee count:", len(company["employees"]))
+    print("   First employee:", company["employees"][0]["name"])
+    print("   HQ location:", company["locations"]["headquarters"]["city"])
+
+    # 5. Configuration Dictionary
+    print("\n5. Configuration Example:")
+    config = {
+        "database": {
+            "host": "localhost",
+            "port": 5432,
+            "name": "myapp_db"
+        },
+        "server": {
+            "port": 8000,
+            "debug": True,
+            "allowed_hosts": ["localhost", "127.0.0.1", "example.com"]
+        }
+    }
+    print("   Database host:", config["database"]["host"])
+    print("   Server port:", config["server"]["port"])
+    print("   Debug mode:", config["server"]["debug"])
+
+    # 6. Dynamic Dictionary Building
+    print("\n6. Dynamic Dictionary Building:")
+    scores = {}
+    students = ["Alice", "Bob", "Charlie", "Diana"]
+
+    # Add scores dynamically
+    scores["Alice"] = 95
+    scores["Bob"] = 87
+    scores["Charlie"] = 92
+    scores["Diana"] = 88
+
+    print("   Student scores:", scores)
+
+    # Calculate average
+    total = scores["Alice"] + scores["Bob"] + scores["Charlie"] + scores["Diana"]
+    average = total / len(students)
+    print(f"   Average score: {average}")
+
+    # 7. Dictionary for Data Mapping
+    print("\n7. Data Mapping Example:")
+    http_codes = {
+        200: "OK",
+        201: "Created",
+        400: "Bad Request",
+        401: "Unauthorized",
+        404: "Not Found",
+        500: "Internal Server Error"
+    }
+
+    print("   HTTP 200:", http_codes[200])
+    print("   HTTP 404:", http_codes[404])
+    print("   HTTP 500:", http_codes[500])
+
+    # 8. Real-world Example: Shopping Cart
+    print("\n8. Shopping Cart Example:")
+    cart = {
+        "items": [
+            {"name": "Laptop", "price": 999.99, "quantity": 1},
+            {"name": "Mouse", "price": 29.99, "quantity": 2},
+            {"name": "Keyboard", "price": 79.99, "quantity": 1}
+        ],
+        "discount": 0.1,
+        "tax_rate": 0.08
+    }
+
+    # Calculate totals
+    laptop_total = cart["items"][0]["price"] * cart["items"][0]["quantity"]
+    mouse_total = cart["items"][1]["price"] * cart["items"][1]["quantity"]
+    keyboard_total = cart["items"][2]["price"] * cart["items"][2]["quantity"]
+
+    subtotal = laptop_total + mouse_total + keyboard_total
+    discount_amount = subtotal * cart["discount"]
+    after_discount = subtotal - discount_amount
+    tax = after_discount * cart["tax_rate"]
+    total = after_discount + tax
+
+    print(f"   Subtotal: ${subtotal}")
+    print(f"   Discount (10%): -${discount_amount}")
+    print(f"   Tax (8%): ${tax}")
+    print(f"   Total: ${total}")
+
+    print("\n=== Demo Complete ===")
+    exit()
