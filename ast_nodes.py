@@ -21,9 +21,14 @@ class VarDeclaration(Declaration):
     value: 'Expression'
 
 @dataclass
+class Parameter(ASTNode):
+    name: str
+    default: Optional['Expression'] = None
+
+@dataclass
 class FuncDeclaration(Declaration):
     name: str
-    params: List[str]
+    params: List['Parameter']
     body: List['Statement']
 
 @dataclass
@@ -36,6 +41,13 @@ class FromImportDeclaration(Declaration):
     module: str
     names: List[str]
     aliases: List[Optional[str]]
+
+@dataclass
+class ClassDeclaration(Declaration):
+    name: str
+    base_class: Optional[str]
+    methods: List['FuncDeclaration']
+    attributes: List['VarDeclaration']
 
 @dataclass
 class Block(ASTNode):

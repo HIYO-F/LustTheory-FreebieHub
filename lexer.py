@@ -12,6 +12,7 @@ class TokenType(Enum):
     PARALLEL = auto()
     WHEN = auto()
     DEF = auto()
+    CLASS = auto()
     IMPORT = auto()
     FROM = auto()
     AS = auto()
@@ -240,6 +241,7 @@ class Lexer:
             'parallel': TokenType.PARALLEL,
             'when': TokenType.WHEN,
             'def': TokenType.DEF,
+            'class': TokenType.CLASS,
             'import': TokenType.IMPORT,
             'from': TokenType.FROM,
             'as': TokenType.AS,
