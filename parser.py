@@ -8,16 +8,6 @@ class Parser:
         self.pos = 0
         self.paren_depth = 0  # Track parenthesis nesting
 
-    def parse_dotted_name(self) -> str:
-        name = self.expect(TokenType.IDENTIFIER).value
-        while self.current_token().type == TokenType.DOT:
-            self.advance()
-            part = self.expect(TokenType.IDENTIFIER).value
-            name += '.' + part
-        return name
-
-
-
     def current_token(self) -> Token:
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
@@ -66,6 +56,9 @@ class Parser:
             # Check for function declarations
             elif self.current_token().type == TokenType.DEF:
                 declarations.append(self.parse_function())
+            # Check for class declarations
+            elif self.current_token().type == TokenType.CLASS:
+                declarations.append(self.parse_class())
             # Check for import statements
             elif self.current_token().type == TokenType.IMPORT:
                 declarations.append(self.parse_import())
@@ -73,7 +66,15 @@ class Parser:
                 declarations.append(self.parse_from_import())
             # Variable declarations or assignments
             elif self.current_token().type == TokenType.IDENTIFIER:
-                if self.peek_token().type == TokenType.ASSIGN:
+                # Check for tuple unpacking at global level
+                if self.peek_token().type == TokenType.COMMA:
+                    # Parse tuple unpacking: a, b, c = expr
+                    # We need to handle this specially at the declaration level
+                    # For now, let's create it as a special VarDeclaration with tuple unpacking
+                    stmt = self.parse_statement()  # This will parse it as TupleUnpackingAssignment
+                    # Convert it to declarations - we'll handle it in the interpreter
+                    declarations.append(stmt)
+                elif self.peek_token().type == TokenType.ASSIGN:
                     declarations.append(self.parse_var_declaration())
                 else:
                     raise SyntaxError(f"Unexpected identifier at line {self.current_token().line}")
@@ -104,10 +105,10 @@ class Parser:
         if self.current_token().type == TokenType.PARALLEL:
             parallel = True
             self.advance()
-    
+
         block_type = self.current_token().type
         self.advance()
-    
+
         name_token = self.expect(TokenType.IDENTIFIER)
         name = name_token.value
     
@@ -156,7 +157,16 @@ class Parser:
 
         params = []
         while self.current_token().type != TokenType.RPAREN:
-            params.append(self.expect(TokenType.IDENTIFIER).value)
+            param_name = self.expect(TokenType.IDENTIFIER).value
+            default_value = None
+
+            # Check for default parameter
+            if self.current_token().type == TokenType.ASSIGN:
+                self.advance()
+                default_value = self.parse_expression()
+
+            params.append(Parameter(param_name, default_value))
+
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
 
@@ -171,6 +181,50 @@ class Parser:
 
         return FuncDeclaration(name, params, body)
 
+    def parse_class(self) -> ClassDeclaration:
+        self.expect(TokenType.CLASS)
+        class_name = self.expect(TokenType.IDENTIFIER).value
+
+        # Check for base class
+        base_class = None
+        if self.current_token().type == TokenType.LPAREN:
+            self.advance()
+            if self.current_token().type == TokenType.IDENTIFIER:
+                base_class = self.advance().value
+            self.expect(TokenType.RPAREN)
+
+        self.expect(TokenType.COLON)
+        self.skip_newlines()
+        self.expect(TokenType.INDENT)
+
+        methods = []
+        attributes = []
+
+        while self.current_token().type != TokenType.DEDENT:
+            self.skip_newlines()
+
+            if self.current_token().type == TokenType.DEF:
+                # Parse method
+                methods.append(self.parse_function())
+            elif self.current_token().type == TokenType.IDENTIFIER:
+                # Parse attribute
+                if self.peek_token().type == TokenType.ASSIGN:
+                    name = self.advance().value
+                    self.expect(TokenType.ASSIGN)
+                    value = self.parse_expression()
+                    attributes.append(VarDeclaration(name, value))
+                    self.skip_newlines()
+                else:
+                    raise SyntaxError(f"Unexpected identifier in class body at line {self.current_token().line}")
+            elif self.current_token().type == TokenType.DEDENT:
+                break
+            else:
+                raise SyntaxError(f"Unexpected token in class body: {self.current_token().type} at line {self.current_token().line}")
+
+        self.expect(TokenType.DEDENT)
+
+        return ClassDeclaration(class_name, base_class, methods, attributes)
+
     def parse_var_declaration(self) -> VarDeclaration:
         name = self.expect(TokenType.IDENTIFIER).value
         self.expect(TokenType.ASSIGN)
@@ -180,11 +234,13 @@ class Parser:
 
     def parse_import(self) -> ImportDeclaration:
         self.expect(TokenType.IMPORT)
-        #module = self.expect(TokenType.IDENTIFIER).value  
 
-        module = self.parse_dotted_name()
-
-
+        # Parse dotted module name (e.g., urllib.request)
+        module_parts = [self.expect(TokenType.IDENTIFIER).value]
+        while self.current_token().type == TokenType.DOT:
+            self.advance()  # consume dot
+            module_parts.append(self.expect(TokenType.IDENTIFIER).value)
+        module = '.'.join(module_parts)
 
         alias = None
         if self.current_token().type == TokenType.AS:
@@ -196,8 +252,14 @@ class Parser:
 
     def parse_from_import(self) -> FromImportDeclaration:
         self.expect(TokenType.FROM)
-        #module = self.expect(TokenType.IDENTIFIER).value
-        module = self.parse_dotted_name()
+
+        # Parse dotted module name (e.g., urllib.parse)
+        module_parts = [self.expect(TokenType.IDENTIFIER).value]
+        while self.current_token().type == TokenType.DOT:
+            self.advance()  # consume dot
+            module_parts.append(self.expect(TokenType.IDENTIFIER).value)
+        module = '.'.join(module_parts)
+
         self.expect(TokenType.IMPORT)
 
         names = []
@@ -240,6 +302,8 @@ class Parser:
         token = self.current_token()
         if token.type == TokenType.WHEN:
             return self.parse_when_statement()
+        elif token.type == TokenType.WITH:
+            return self.parse_with_statement()
         elif token.type == TokenType.BREAK:
             self.advance()
             return BreakStatement()
@@ -270,9 +334,41 @@ class Parser:
                 names.append(self.expect(TokenType.IDENTIFIER).value)
             return GlobalStatement(names)
         elif token.type == TokenType.IDENTIFIER:
+            # Check for tuple unpacking: a, b = expr
+            if self.peek_token().type == TokenType.COMMA:
+                # Parse tuple unpacking targets
+                targets = []
+                targets.append(self.advance().value)  # Get first identifier
+
+                while self.current_token().type == TokenType.COMMA:
+                    self.advance()  # Skip comma
+                    targets.append(self.expect(TokenType.IDENTIFIER).value)
+
+                self.expect(TokenType.ASSIGN)
+
+                # Parse the right-hand side - could be a single expression or multiple comma-separated
+                values = []
+                values.append(self.parse_expression())
+
+                # Check if there are more comma-separated values on the right
+                while self.current_token().type == TokenType.COMMA:
+                    self.advance()  # Skip comma
+                    # Only continue if not at end of statement
+                    if self.current_token().type not in [TokenType.NEWLINE, TokenType.EOF, TokenType.DEDENT]:
+                        values.append(self.parse_expression())
+                    else:
+                        break
+
+                # If multiple values, create a tuple literal, otherwise use single value
+                if len(values) > 1:
+                    value = TupleLiteral(values)
+                else:
+                    value = values[0]
+
+                return TupleUnpackingAssignment(targets, value)
             # Parse the left side as an expression first
             # Check for simple assignment shortcut
-            if self.peek_token().type == TokenType.ASSIGN:
+            elif self.peek_token().type == TokenType.ASSIGN:
                 # Simple assignment: var = value
                 name = self.advance().value
                 self.advance()  # skip =
@@ -319,6 +415,25 @@ class Parser:
 
         return WhenStatement(condition, body)
 
+    def parse_with_statement(self) -> WithStatement:
+        self.expect(TokenType.WITH)
+        context_expr = self.parse_expression()
+
+        var_name = None
+        if self.current_token().type == TokenType.AS:
+            self.advance()
+            var_name = self.expect(TokenType.IDENTIFIER).value
+
+        self.expect(TokenType.COLON)
+        self.skip_newlines()
+        self.expect(TokenType.INDENT)
+
+        body = self.parse_statements()
+
+        self.expect(TokenType.DEDENT)
+
+        return WithStatement(context_expr, var_name, body)
+
     def parse_expression(self) -> Expression:
         return self.parse_ternary()
 
@@ -350,13 +465,26 @@ class Parser:
         left = self.parse_logical_and()
 
         while self.current_token().type in [TokenType.EQ, TokenType.NE, TokenType.LT,
-                                           TokenType.GT, TokenType.LE, TokenType.GE, TokenType.IN, TokenType.NOT]:
+                                           TokenType.GT, TokenType.LE, TokenType.GE, TokenType.IN, TokenType.NOT, TokenType.IS]:
 
             # Handle "not in" compound operator
             if self.current_token().type == TokenType.NOT and self.peek_token().type == TokenType.IN:
                 self.advance()  # consume "not"
                 self.advance()  # consume "in"
                 op = "not in"
+                right = self.parse_logical_and()
+                left = BinaryOp(left, op, right)
+            # Handle "is not" compound operator
+            elif self.current_token().type == TokenType.IS and self.peek_token().type == TokenType.NOT:
+                self.advance()  # consume "is"
+                self.advance()  # consume "not"
+                op = "is not"
+                right = self.parse_logical_and()
+                left = BinaryOp(left, op, right)
+            # Handle regular "is"
+            elif self.current_token().type == TokenType.IS:
+                self.advance()  # consume "is"
+                op = "is"
                 right = self.parse_logical_and()
                 left = BinaryOp(left, op, right)
             else:
@@ -430,9 +558,39 @@ class Parser:
         while True:
             if self.current_token().type == TokenType.LBRACKET:
                 self.advance()
-                index = self.parse_expression()
+
+                # Check for slice syntax
+                start = None
+                stop = None
+                step = None
+                is_slice = False
+
+                # Parse start (or could be a regular index)
+                if self.current_token().type != TokenType.COLON:
+                    start = self.parse_expression()
+
+                # Check if this is a slice
+                if self.current_token().type == TokenType.COLON:
+                    is_slice = True
+                    self.advance()  # Skip colon
+
+                    # Parse stop
+                    if self.current_token().type not in [TokenType.COLON, TokenType.RBRACKET]:
+                        stop = self.parse_expression()
+
+                    # Check for step
+                    if self.current_token().type == TokenType.COLON:
+                        self.advance()  # Skip second colon
+                        if self.current_token().type != TokenType.RBRACKET:
+                            step = self.parse_expression()
+
                 self.expect(TokenType.RBRACKET)
-                expr = IndexExpression(expr, index)
+
+                if is_slice:
+                    expr = SliceExpression(expr, start, stop, step)
+                else:
+                    # Regular index expression
+                    expr = IndexExpression(expr, start)
             elif self.current_token().type == TokenType.DOT:
                 self.advance()
 

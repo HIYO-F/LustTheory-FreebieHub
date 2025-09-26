@@ -16,7 +16,7 @@ def read_readme():
 
 setup(
     name="when-lang",
-    version="1.0.0",
+    version="0.4.0",
     description="WHEN Language Interpreter - A unique loop-based programming language",
     long_description=read_readme(),
     long_description_content_type="text/markdown",

@@ -152,6 +152,183 @@ class Interpreter:
         def is_type(obj, type_name):
             return type(obj).__name__ == type_name
 
+        # chr: Convert integer to character
+        def chr_func(i):
+            return chr(i)
+
+        # ord: Convert character to integer
+        def ord_func(c):
+            return ord(c)
+
+        # repr: Get string representation
+        def repr_func(obj):
+            return repr(obj)
+
+        # exit: Exit the program
+        def exit_func():
+            raise ExitException()
+
+        # open: Python's built-in open function
+        open_func = open
+
+        # ==== TUPLE AND COLLECTION BUILT-INS ====
+
+        # tuple: Convert to tuple
+        tuple_func = tuple
+
+        # list: Convert to list
+        list_func = list
+
+        # dict: Create dictionary
+        dict_func = dict
+
+        # set: Create set
+        set_func = set
+
+        # frozenset: Create immutable set
+        frozenset_func = frozenset
+
+        # len: Get length
+        len_func = len
+
+        # min: Get minimum value
+        min_func = min
+
+        # max: Get maximum value
+        max_func = max
+
+        # sum: Sum of elements
+        sum_func = sum
+
+        # sorted: Return sorted list
+        sorted_func = sorted
+
+        # reversed: Return reversed iterator
+        reversed_func = reversed
+
+        # enumerate: Return enumerated pairs
+        enumerate_func = enumerate
+
+        # zip: Zip iterables together
+        zip_func = zip
+
+        # all: Check if all elements are true
+        all_func = all
+
+        # any: Check if any element is true
+        any_func = any
+
+        # filter: Filter elements
+        filter_func = filter
+
+        # map: Map function over iterable
+        map_func = map
+
+        # range: Generate range of numbers
+        range_func = range
+
+        # slice: Create slice object
+        slice_func = slice
+
+        # iter: Get iterator
+        iter_func = iter
+
+        # next: Get next item from iterator
+        next_func = next
+
+        # abs: Absolute value
+        abs_func = abs
+
+        # round: Round number
+        round_func = round
+
+        # int: Convert to integer
+        int_func = int
+
+        # float: Convert to float
+        float_func = float
+
+        # str: Convert to string
+        str_func = str
+
+        # bool: Convert to boolean
+        bool_func = bool
+
+        # bytes: Create bytes object
+        bytes_func = bytes
+
+        # bytearray: Create mutable bytes
+        bytearray_func = bytearray
+
+        # hex: Convert to hexadecimal
+        hex_func = hex
+
+        # bin: Convert to binary
+        bin_func = bin
+
+        # oct: Convert to octal
+        oct_func = oct
+
+        # hash: Get hash value
+        hash_func = hash
+
+        # id: Get object identity
+        id_func = id
+
+        # divmod: Division and modulo
+        divmod_func = divmod
+
+        # pow: Power function
+        pow_func = pow
+
+        # callable: Check if object is callable
+        callable_func = callable
+
+        # getattr/setattr/delattr/hasattr
+        getattr_func = getattr
+        setattr_func = setattr
+        delattr_func = delattr
+        hasattr_func = hasattr
+
+        # dir: Get attributes
+        dir_func = dir
+
+        # help: Get help (limited in WHEN)
+        def help_func(obj=None):
+            if obj is None:
+                return "WHEN Language Help - Use help(object) for object help"
+            return f"Help for {type(obj).__name__}: {dir(obj)[:10]}..."
+
+        # input: Get user input
+        input_func = input
+
+        # print: Already available, but let's be explicit
+        print_func = print
+
+        # format: Format strings
+        format_func = format
+
+        # eval: Evaluate expression (be careful!)
+        # We'll make a safer version
+        def eval_func(expr_str):
+            # Parse and evaluate WHEN expression
+            from lexer import Lexer
+            from parser import Parser
+            try:
+                lexer = Lexer(expr_str)
+                tokens = lexer.tokenize()
+                parser = Parser(tokens)
+                # Try to parse as expression
+                parser.pos = 0  # Reset position
+                expr = parser.parse_expression()
+                return self.eval_expression(expr)
+            except:
+                raise ValueError(f"Cannot evaluate expression: {expr_str}")
+
+        # exec: Execute statements (disabled for safety)
+        def exec_func(code):
+            raise NotImplementedError("exec() is not supported in WHEN for security reasons")
+
         # Add all built-ins to global vars
         self.global_vars["safe_call"] = safe_call
         self.global_vars["get_error"] = get_error
@@ -163,11 +340,89 @@ class Interpreter:
         self.global_vars["is_type"] = is_type
         self.global_vars["isinstance"] = isinstance  # Add Python's isinstance too
         self.global_vars["type"] = type  # Add Python's type too
+        self.global_vars["chr"] = chr_func  # Character conversion
+        self.global_vars["ord"] = ord_func  # Inverse of chr
+        self.global_vars["repr"] = repr_func  # String representation
+        self.global_vars["exit"] = exit_func  # Exit program
+        self.global_vars["open"] = open_func  # File operations
+
+        # Collection and sequence functions
+        self.global_vars["tuple"] = tuple_func
+        self.global_vars["list"] = list_func
+        self.global_vars["dict"] = dict_func
+        self.global_vars["set"] = set_func
+        self.global_vars["frozenset"] = frozenset_func
+        self.global_vars["len"] = len_func
+        self.global_vars["min"] = min_func
+        self.global_vars["max"] = max_func
+        self.global_vars["sum"] = sum_func
+        self.global_vars["sorted"] = sorted_func
+        self.global_vars["reversed"] = reversed_func
+        self.global_vars["enumerate"] = enumerate_func
+        self.global_vars["zip"] = zip_func
+        self.global_vars["all"] = all_func
+        self.global_vars["any"] = any_func
+        self.global_vars["filter"] = filter_func
+        self.global_vars["map"] = map_func
+        self.global_vars["range"] = range_func
+        self.global_vars["slice"] = slice_func
+        self.global_vars["iter"] = iter_func
+        self.global_vars["next"] = next_func
+
+        # Numeric functions
+        self.global_vars["abs"] = abs_func
+        self.global_vars["round"] = round_func
+        self.global_vars["divmod"] = divmod_func
+        self.global_vars["pow"] = pow_func
+
+        # Type conversion
+        self.global_vars["int"] = int_func
+        self.global_vars["float"] = float_func
+        self.global_vars["str"] = str_func
+        self.global_vars["bool"] = bool_func
+        self.global_vars["bytes"] = bytes_func
+        self.global_vars["bytearray"] = bytearray_func
+
+        # String formatting
+        self.global_vars["hex"] = hex_func
+        self.global_vars["bin"] = bin_func
+        self.global_vars["oct"] = oct_func
+        self.global_vars["format"] = format_func
+
+        # Object introspection
+        self.global_vars["hash"] = hash_func
+        self.global_vars["id"] = id_func
+        self.global_vars["callable"] = callable_func
+        self.global_vars["getattr"] = getattr_func
+        self.global_vars["setattr"] = setattr_func
+        self.global_vars["delattr"] = delattr_func
+        self.global_vars["hasattr"] = hasattr_func
+        self.global_vars["dir"] = dir_func
+
+        # I/O and help
+        self.global_vars["help"] = help_func
+        self.global_vars["input"] = input_func
+        self.global_vars["print"] = print_func
+
+        # Eval/exec (with limitations)
+        self.global_vars["eval"] = eval_func
+        self.global_vars["exec"] = exec_func
 
     def interpret(self, program: Program):
         # Process declarations
         for decl in program.declarations:
-            if isinstance(decl, VarDeclaration):
+            if isinstance(decl, TupleUnpackingAssignment):
+                # Handle tuple unpacking at global level
+                value = self.eval_expression(decl.value)
+                if hasattr(value, '__iter__') and not isinstance(value, str):
+                    values = list(value)
+                else:
+                    raise ValueError(f"Cannot unpack non-iterable {type(value).__name__} value")
+                if len(values) != len(decl.targets):
+                    raise ValueError(f"Too many values to unpack (expected {len(decl.targets)}, got {len(values)})")
+                for target, val in zip(decl.targets, values):
+                    self.global_vars[target] = val
+            elif isinstance(decl, VarDeclaration):
                 self.global_vars[decl.name] = self.eval_expression(decl.value)
             elif isinstance(decl, FuncDeclaration):
                 self.functions[decl.name] = decl
@@ -323,6 +578,29 @@ class Interpreter:
     def execute_statement(self, stmt: Statement):
         if isinstance(stmt, ExpressionStatement):
             self.eval_expression(stmt.expr)
+        elif isinstance(stmt, TupleUnpackingAssignment):
+            # Handle tuple unpacking: a, b, c = expr
+            value = self.eval_expression(stmt.value)
+
+            # Convert value to list/tuple if it's iterable
+            if hasattr(value, '__iter__') and not isinstance(value, str):
+                values = list(value)
+            else:
+                raise ValueError(f"Cannot unpack non-iterable {type(value).__name__} value")
+
+            # Check length match
+            if len(values) != len(stmt.targets):
+                raise ValueError(f"Too many values to unpack (expected {len(stmt.targets)}, got {len(values)})")
+
+            # Assign each value to corresponding target
+            with self.global_vars_lock:
+                for target, val in zip(stmt.targets, values):
+                    if self.current_module and self.current_module in self.module_namespaces:
+                        self.module_namespaces[self.current_module][target] = val
+                        if self.current_module in self.modules:
+                            setattr(self.modules[self.current_module], target, val)
+                    else:
+                        self.global_vars[target] = val
         elif isinstance(stmt, Assignment):
             value = self.eval_expression(stmt.value)
             with self.global_vars_lock:
@@ -351,6 +629,43 @@ class Interpreter:
         elif isinstance(stmt, WhenStatement):
             condition_result = self.eval_expression(stmt.condition)
             if condition_result:
+                self.execute_statements(stmt.body)
+        elif isinstance(stmt, WithStatement):
+            # Execute with statement (context manager)
+            context = self.eval_expression(stmt.context_expr)
+
+            # Check if it has __enter__ and __exit__ methods
+            if hasattr(context, '__enter__') and hasattr(context, '__exit__'):
+                # Use the context manager protocol
+                value = context.__enter__()
+
+                # Store in variable if 'as' clause is present
+                if stmt.var_name:
+                    with self.global_vars_lock:
+                        if self.current_module and self.current_module in self.module_namespaces:
+                            self.module_namespaces[self.current_module][stmt.var_name] = value
+                        else:
+                            self.global_vars[stmt.var_name] = value
+
+                try:
+                    # Execute the body
+                    self.execute_statements(stmt.body)
+                except Exception as e:
+                    # Call __exit__ with exception info
+                    if not context.__exit__(type(e), e, None):
+                        raise
+                else:
+                    # Call __exit__ with no exception
+                    context.__exit__(None, None, None)
+            else:
+                # Simple assignment without context manager protocol
+                if stmt.var_name:
+                    with self.global_vars_lock:
+                        if self.current_module and self.current_module in self.module_namespaces:
+                            self.module_namespaces[self.current_module][stmt.var_name] = context
+                        else:
+                            self.global_vars[stmt.var_name] = context
+                # Execute the body
                 self.execute_statements(stmt.body)
         elif isinstance(stmt, BreakStatement):
             raise BreakException()
@@ -396,6 +711,16 @@ class Interpreter:
         elif isinstance(expr, DictLiteral):
             return {self.eval_expression(k): self.eval_expression(v)
                     for k, v in zip(expr.keys, expr.values)}
+        elif isinstance(expr, SliceExpression):
+            obj = self.eval_expression(expr.object)
+            start = self.eval_expression(expr.start) if expr.start else None
+            stop = self.eval_expression(expr.stop) if expr.stop else None
+            step = self.eval_expression(expr.step) if expr.step else None
+
+            if step is not None:
+                return obj[start:stop:step]
+            else:
+                return obj[start:stop]
         elif isinstance(expr, IndexExpression):
             obj = self.eval_expression(expr.object)
             index = self.eval_expression(expr.index)
@@ -696,6 +1021,10 @@ class Interpreter:
             return left in right
         elif op == 'not in':
             return left not in right
+        elif op == 'is':
+            return left is right
+        elif op == 'is not':
+            return left is not right
         else:
             raise NotImplementedError(f"Operator {op} not implemented")
 

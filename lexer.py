@@ -25,6 +25,8 @@ class TokenType(Enum):
     PASS = auto()
     RETURN = auto()
     GLOBAL = auto()
+    WITH = auto()
+    IS = auto()
 
     # Operations
     START = auto()
@@ -106,6 +108,17 @@ class Lexer:
             return self.source[pos]
         return None
 
+    def peek_ahead(self, length) -> str:
+        """Peek ahead multiple characters"""
+        result = ""
+        for i in range(length):
+            char = self.peek(i)
+            if char:
+                result += char
+            else:
+                break
+        return result
+
     def advance(self) -> Optional[str]:
         if self.pos < len(self.source):
             char = self.source[self.pos]
@@ -161,7 +174,30 @@ class Lexer:
         start_col = self.column
         quote = self.advance()  # Skip opening quote
         string_val = ''
-        while self.peek() and self.peek() != quote:
+
+        # Handle triple quotes for multi-line strings
+        is_triple = False
+        if self.peek() == quote and self.peek(1) == quote:
+            is_triple = True
+            self.advance()  # Skip second quote
+            self.advance()  # Skip third quote
+
+        while self.peek():
+            if is_triple:
+                # Check for triple quote ending
+                if (self.peek() == quote and
+                    self.peek(1) == quote and
+                    self.peek(2) == quote):
+                    self.advance()  # Skip first quote
+                    self.advance()  # Skip second quote
+                    self.advance()  # Skip third quote
+                    break
+            else:
+                # Single quote string
+                if self.peek() == quote:
+                    self.advance()  # Skip closing quote
+                    break
+
             if self.peek() == '\\':
                 self.advance()
                 next_char = self.advance()
@@ -169,21 +205,137 @@ class Lexer:
                     string_val += '\n'
                 elif next_char == 't':
                     string_val += '\t'
+                elif next_char == 'r':
+                    string_val += '\r'
+                elif next_char == '\\':
+                    string_val += '\\'
+                elif next_char == '\"':
+                    string_val += '\"'
+                elif next_char == "'":
+                    string_val += "'"
+                elif next_char == 'b':
+                    string_val += '\b'
+                elif next_char == 'f':
+                    string_val += '\f'
+                elif next_char == 'v':
+                    string_val += '\v'
+                elif next_char == '0':
+                    string_val += '\0'
+                elif next_char == 'x':
+                    # Hex escape sequence
+                    hex_digits = ''
+                    for _ in range(2):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 2:
+                        string_val += chr(int(hex_digits, 16))
+                    else:
+                        string_val += '\\x' + hex_digits
+                elif next_char == 'u':
+                    # Unicode escape sequence
+                    hex_digits = ''
+                    for _ in range(4):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 4:
+                        string_val += chr(int(hex_digits, 16))
+                    else:
+                        string_val += '\\u' + hex_digits
+                elif next_char == 'U':
+                    # Long unicode escape sequence
+                    hex_digits = ''
+                    for _ in range(8):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 8:
+                        string_val += chr(int(hex_digits, 16))
+                    else:
+                        string_val += '\\U' + hex_digits
                 else:
+                    # For unrecognized escape sequences, just include the character
                     string_val += next_char
             else:
                 string_val += self.advance()
-        self.advance()  # Skip closing quote
+
         return Token(TokenType.STRING, string_val, self.line, start_col)
 
-    def read_fstring(self) -> Token:
+    def read_raw_string(self) -> Token:
+        """Read a raw string (r-string) where backslashes are literal"""
+        start_col = self.column
+        quote = self.advance()  # Skip opening quote
+        string_val = ''
+
+        # Handle triple quotes for multi-line raw strings
+        is_triple = False
+        if self.peek() == quote and self.peek(1) == quote:
+            is_triple = True
+            self.advance()  # Skip second quote
+            self.advance()  # Skip third quote
+
+        while self.peek():
+            if is_triple:
+                # Check for triple quote ending
+                if (self.peek() == quote and
+                    self.peek(1) == quote and
+                    self.peek(2) == quote):
+                    self.advance()  # Skip first quote
+                    self.advance()  # Skip second quote
+                    self.advance()  # Skip third quote
+                    break
+                string_val += self.advance()
+            else:
+                # Single quote raw string
+                if self.peek() == quote:
+                    self.advance()  # Skip closing quote
+                    break
+                # In raw strings, backslashes are literal
+                string_val += self.advance()
+
+        return Token(TokenType.STRING, string_val, self.line, start_col)
+
+    def read_fstring(self, is_raw=False) -> Token:
+        """Read an f-string, optionally as raw (rf or fr)"""
         start_col = self.column
         quote = self.advance()  # Skip opening quote
         parts = []
         current_str = ''
 
-        while self.peek() and self.peek() != quote:
+        # Handle triple quotes for multi-line f-strings
+        is_triple = False
+        if self.peek() == quote and self.peek(1) == quote:
+            is_triple = True
+            self.advance()  # Skip second quote
+            self.advance()  # Skip third quote
+
+        while self.peek():
+            # Check for end quote(s)
+            if is_triple:
+                if (self.peek() == quote and
+                    self.peek(1) == quote and
+                    self.peek(2) == quote):
+                    # Add any remaining string content
+                    if current_str:
+                        parts.append(('str', current_str))
+                    self.advance()  # Skip first quote
+                    self.advance()  # Skip second quote
+                    self.advance()  # Skip third quote
+                    break
+            else:
+                if self.peek() == quote:
+                    # Add any remaining string content
+                    if current_str:
+                        parts.append(('str', current_str))
+                    self.advance()  # Skip closing quote
+                    break
+
             if self.peek() == '{':
+                # Check for {{ escape
+                if self.peek(1) == '{':
+                    current_str += '{'
+                    self.advance()  # Skip first {
+                    self.advance()  # Skip second {
+                    continue
+
                 # Save any string content before the expression
                 if current_str:
                     parts.append(('str', current_str))
@@ -207,23 +359,76 @@ class Lexer:
                         expr += char
 
                 parts.append(('expr', expr.strip()))
-            elif self.peek() == '\\':
+            elif self.peek() == '}':
+                # Check for }} escape
+                if self.peek(1) == '}':
+                    current_str += '}'
+                    self.advance()  # Skip first }
+                    self.advance()  # Skip second }
+                else:
+                    # Single } is an error in f-strings
+                    raise SyntaxError(f"Single '}}' is not allowed in f-string at line {self.line}")
+            elif self.peek() == '\\' and not is_raw:
+                # Process escape sequences (unless it's a raw f-string)
                 self.advance()
                 next_char = self.advance()
                 if next_char == 'n':
                     current_str += '\n'
                 elif next_char == 't':
                     current_str += '\t'
+                elif next_char == 'r':
+                    current_str += '\r'
+                elif next_char == '\\':
+                    current_str += '\\'
+                elif next_char == '\"':
+                    current_str += '\"'
+                elif next_char == "'":
+                    current_str += "'"
+                elif next_char == 'b':
+                    current_str += '\b'
+                elif next_char == 'f':
+                    current_str += '\f'
+                elif next_char == 'v':
+                    current_str += '\v'
+                elif next_char == '0':
+                    current_str += '\0'
+                elif next_char == 'x':
+                    # Hex escape sequence
+                    hex_digits = ''
+                    for _ in range(2):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 2:
+                        current_str += chr(int(hex_digits, 16))
+                    else:
+                        current_str += '\\x' + hex_digits
+                elif next_char == 'u':
+                    # Unicode escape sequence
+                    hex_digits = ''
+                    for _ in range(4):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 4:
+                        current_str += chr(int(hex_digits, 16))
+                    else:
+                        current_str += '\\u' + hex_digits
+                elif next_char == 'U':
+                    # Long unicode escape sequence
+                    hex_digits = ''
+                    for _ in range(8):
+                        if self.peek() and self.peek() in '0123456789abcdefABCDEF':
+                            hex_digits += self.advance()
+                    if len(hex_digits) == 8:
+                        current_str += chr(int(hex_digits, 16))
+                    else:
+                        current_str += '\\U' + hex_digits
                 else:
+                    # For unrecognized escape sequences, include the character
                     current_str += next_char
             else:
+                # Regular character (or backslash in raw f-string)
                 current_str += self.advance()
 
-        # Add any remaining string content
-        if current_str:
-            parts.append(('str', current_str))
-
-        self.advance()  # Skip closing quote
         return Token(TokenType.FSTRING, parts, self.line, start_col)
 
     def read_identifier(self) -> Token:
@@ -232,10 +437,9 @@ class Lexer:
         while self.peek() and (self.peek().isalnum() or self.peek() == '_'):
             ident += self.advance()
 
-        # Check for keywords
+        # Check for keywords (removed 'os' from keywords - it's now context-sensitive)
         keywords = {
             'main': TokenType.MAIN,
-            'os': TokenType.OS,
             'de': TokenType.DE,
             'fo': TokenType.FO,
             'parallel': TokenType.PARALLEL,
@@ -264,7 +468,83 @@ class Lexer:
             'or': TokenType.OR,
             'not': TokenType.NOT,
             'in': TokenType.IN,
+            'with': TokenType.WITH,
+            'is': TokenType.IS,
         }
+
+        # Handle 'os' context-sensitively
+        if ident == 'os':
+            # Save current position
+            saved_pos = self.pos
+            saved_col = self.column
+            saved_line = self.line
+
+            # Skip whitespace
+            while self.peek() and self.peek() in ' \t':
+                self.advance()
+
+            # Check what follows 'os'
+            next_char = self.peek()
+
+            # os is an IDENTIFIER (import) if:
+            # 1. Followed by a dot (os.something)
+            # 2. At end of line/file (import os)
+            # 3. Followed by comma (import os, sys)
+            # 4. Followed by 'as' (import os as operating_system)
+
+            # os is a KEYWORD (OS block) if:
+            # Followed by identifier then : or ( (os blockname: or os blockname():)
+
+            # Quick check for os.something (module access)
+            if next_char == '.':
+                # Restore position
+                self.pos = saved_pos
+                self.column = saved_col
+                self.line = saved_line
+                return Token(TokenType.IDENTIFIER, ident, self.line, start_col)
+
+            # Check for import statement context (comma, newline, as, etc)
+            if next_char in [',', '\n', None] or not next_char.isalpha():
+                # Restore position
+                self.pos = saved_pos
+                self.column = saved_col
+                self.line = saved_line
+                return Token(TokenType.IDENTIFIER, ident, self.line, start_col)
+
+            # Now check if it's a block declaration
+            if next_char and next_char.isalpha():
+                # os blockname: or os blockname():
+                # Read the next word
+                next_word = ''
+                temp_pos = self.pos
+                while self.peek() and (self.peek().isalnum() or self.peek() == '_'):
+                    next_word += self.peek()
+                    self.pos += 1
+
+                # Skip more whitespace
+                while self.peek() and self.peek() in ' \t':
+                    self.advance()
+
+                # Check what comes after the identifier
+                following = self.peek()
+
+                # It's an OS block if:
+                # - followed by ':' (os blockname:)
+                # - followed by '(' (os blockname(): or os blockname(args):)
+                if following == ':' or following == '(':
+                    # Restore position
+                    self.pos = saved_pos
+                    self.column = saved_col
+                    self.line = saved_line
+                    return Token(TokenType.OS, ident, self.line, start_col)
+
+            # Restore position
+            self.pos = saved_pos
+            self.column = saved_col
+            self.line = saved_line
+
+            # Not a block declaration, treat as identifier
+            return Token(TokenType.IDENTIFIER, ident, self.line, start_col)
 
         token_type = keywords.get(ident, TokenType.IDENTIFIER)
         return Token(token_type, ident, self.line, start_col)
@@ -328,11 +608,55 @@ class Lexer:
                 self.tokens.append(self.read_number())
                 continue
 
-            # Check for f-strings (must come before regular strings)
-            if char == 'f' and self.peek(1) and self.peek(1) in '"\'':
-                self.advance()  # Skip 'f'
-                self.tokens.append(self.read_fstring())
-                continue
+            # Check for f-strings and raw strings (rf, fr, rb, br, etc.)
+            # Handle all possible prefix combinations
+            if char.lower() in 'rfbu':
+                # Check for string prefixes (f, r, b, u, rf, fr, rb, br, etc.)
+                prefix = ''
+                saved_pos = self.pos
+                saved_col = self.column
+                saved_line = self.line
+
+                # Collect all prefix characters (up to 3 for safety but typically 2)
+                while self.peek() and self.peek().lower() in 'rfbu' and len(prefix) < 3:
+                    prefix += self.peek().lower()
+                    self.advance()
+
+                # Check if this is followed by a quote (including triple quotes)
+                next_char = self.peek()
+                if next_char and next_char in '"\'':
+                    # Check what type of string this is
+                    if 'f' in prefix and 'r' in prefix:
+                        # It's a raw f-string (rf or fr)
+                        self.tokens.append(self.read_fstring(is_raw=True))
+                        continue
+                    elif 'f' in prefix:
+                        # It's a regular f-string
+                        self.tokens.append(self.read_fstring(is_raw=False))
+                        continue
+                    elif 'b' in prefix and 'r' in prefix:
+                        # Raw bytes string - treat as raw string
+                        self.tokens.append(self.read_raw_string())
+                        continue
+                    elif 'b' in prefix:
+                        # It's a bytes string - treat as regular string for now
+                        self.tokens.append(self.read_string())
+                        continue
+                    elif 'r' in prefix:
+                        # It's a raw string - read without escape processing
+                        self.tokens.append(self.read_raw_string())
+                        continue
+                    elif 'u' in prefix:
+                        # Unicode string (same as regular in Python 3)
+                        self.tokens.append(self.read_string())
+                        continue
+                else:
+                    # Not a string prefix, restore position and treat as identifier
+                    self.pos = saved_pos
+                    self.column = saved_col
+                    self.line = saved_line
+                    self.tokens.append(self.read_identifier())
+                    continue
 
             # Strings
             if char in '"\'':

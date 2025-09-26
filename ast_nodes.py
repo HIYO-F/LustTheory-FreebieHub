@@ -92,6 +92,12 @@ class WhenStatement(Statement):
     body: List[Statement]
 
 @dataclass
+class WithStatement(Statement):
+    context_expr: 'Expression'
+    var_name: Optional[str]
+    body: List[Statement]
+
+@dataclass
 class BreakStatement(Statement):
     pass
 
@@ -118,6 +124,11 @@ class GlobalStatement(Statement):
 @dataclass
 class Assignment(Statement):
     name: str
+    value: 'Expression'
+
+@dataclass
+class TupleUnpackingAssignment(Statement):
+    targets: List[str]
     value: 'Expression'
 
 @dataclass
@@ -229,6 +240,13 @@ class DictLiteral(Expression):
 class IndexExpression(Expression):
     object: Expression
     index: Expression
+
+@dataclass
+class SliceExpression(Expression):
+    object: Expression
+    start: Optional[Expression]
+    stop: Optional[Expression]
+    step: Optional[Expression] = None
 
 @dataclass
 class MemberAccess(Expression):
